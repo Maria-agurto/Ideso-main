@@ -18,15 +18,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Precios base reales promedio para la simulación de contingencia si Yahoo bloquea la IP
-BASE_PRICES = {
-    "FSM": 6.50,
-    "VOLCABC1.LM": 0.22,
-    "ABX.TO": 22.00,
-    "BVN": 15.40,
-    "BHP": 55.00
-}
-
 # --- SIMULACIÓN 3: Middleware para monitoreo de inactividad (Cold Starts) ---
 @app.middleware("http")
 async def log_startup_latency(request: Request, call_next):
@@ -50,14 +41,14 @@ async def get_market_data(ticker: str):
     ticker_upper = ticker.upper()
     if ticker_upper not in valid_tickers:
         raise HTTPException(status_code=400, detail="Símbolo bursátil no compatible en el SPBI.")
+    
+    # 1. Intentar la descarga real utilizando simulación de navegador
     try:
-        # Crear una sesión de solicitudes simulando un navegador real para evitar bloqueos
         session = requests.Session()
         session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, Gecko) Chrome/120.0.0.0 Safari/537.36'
         })
         
-        # Descarga con soporte de contingencia de parámetros de versión
         try:
             data = yf.download(
                 ticker_upper, 
@@ -74,14 +65,16 @@ async def get_market_data(ticker: str):
                 session=session
             )
             
-        # Si la descarga real funcionó y tiene datos, procesarla
         if not data.empty:
             if isinstance(data.columns, pd.MultiIndex):
                 data.columns = data.columns.get_level_values(0)
             
             data.columns = [str(col).lower() for col in data.columns]
             
-            # Devolver los datos reales del mercado
+            # --- BLINDAJE CONTRA VALORES NULOS (NaN) EN EL DATAFRAME ---
+            # Rellenamos cualquier vacío de cotización con el precio del último día transaccionado
+            data = data.ffill().bfill()
+            
             return {
                 "ticker": ticker_upper,
                 "dates": [str(d.date()) for d in data.index],
@@ -99,18 +92,26 @@ async def get_market_data(ticker: str):
     close_prices = list()
     volumes = list()
     
+    # Precios base reales promedio para la simulación
+    BASE_PRICES = {
+        "FSM": 6.50,
+        "VOLCABC1.LM": 0.22,
+        "ABX.TO": 22.00,
+        "BVN": 15.40,
+        "BHP": 55.00
+    }
+    
     base_price = BASE_PRICES.get(ticker_upper, 15.0)
     current_date = datetime.date.today() - datetime.timedelta(days=45)
     price = base_price
     
-    # Semilla fija para que los gráficos mantengan consistencia al recargar
+    # Semilla fija para mantener consistencia de gráficos al recargar
     random.seed(hash(ticker_upper))
     
     while len(dates) < 30:
-        # Excluir los fines de semana para emular días de transacciones reales
         if current_date.weekday() < 5:
             dates.append(str(current_date))
-            pct_change = random.normalvariate(0.001, 0.015)  # Variación diaria realista
+            pct_change = random.normalvariate(0.001, 0.015)
             price = round(price * (1 + pct_change), 2)
             close_prices.append(price)
             volumes.append(random.randint(400000, 2500000))
