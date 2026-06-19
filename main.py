@@ -33,8 +33,8 @@ def read_root():
 # --- SIMULACIÓN 2: API de yfinance para retornar cotizaciones en formato JSON ---
 @app.get("/api/mercado/{ticker}")
 async def get_market_data(ticker: str):
-    # Lista oficial de los 5 tickers de empresas mineras de tu proyecto
-    valid_tickers =
+    # Lista oficial de los 5 tickers usando formato de tupla para evitar errores del editor
+    valid_tickers = ("FSM", "VOLCABC1.LM", "ABX.TO", "BVN", "BHP")
     
     ticker_upper = ticker.upper()
     if ticker_upper not in valid_tickers:
@@ -45,7 +45,7 @@ async def get_market_data(ticker: str):
         if data.empty:
             raise HTTPException(status_code=404, detail="No se recuperaron datos de Yahoo Finance.")
         
-        # Evitar errores de encabezados dobles (MultiIndex) en la versión de yfinance de 2026
+        # Evitar errores de encabezados dobles (MultiIndex) en pandas
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = data.columns.get_level_values(0)
         
