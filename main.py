@@ -1,4 +1,5 @@
 import time
+import pandas as pd
 import yfinance as yf
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,7 +33,7 @@ def read_root():
 # --- SIMULACIÓN 2: API de yfinance para retornar cotizaciones en formato JSON ---
 @app.get("/api/mercado/{ticker}")
 async def get_market_data(ticker: str):
-    # Lista de tickers mineros peruanos compatibles según las especificaciones del grupo
+    # Lista oficial de los 5 tickers de empresas mineras de tu proyecto
     valid_tickers =
     
     ticker_upper = ticker.upper()
@@ -43,6 +44,10 @@ async def get_market_data(ticker: str):
         data = yf.download(ticker_upper, period="1mo", interval="1d")
         if data.empty:
             raise HTTPException(status_code=404, detail="No se recuperaron datos de Yahoo Finance.")
+        
+        # Evitar errores de encabezados dobles (MultiIndex) en la versión de yfinance de 2026
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
         
         # Formatear el JSON exacto con el contrato de datos requerido por tu frontend
         response_data = {
