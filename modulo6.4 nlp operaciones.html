@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo NLP - Dashboard de Sentimiento Financiero</title>
+    <!-- Tailwind CSS para un diseño moderno y responsivo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js para las visualizaciones métricas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome para los iconos de sentimiento -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+
+    <!-- Contenedor Principal -->
+    <div class="container mx-auto px-4 py-6">
+        
+        <!-- Encabezado del Sistema -->
+        <header class="mb-8 border-b border-gray-800 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+                    Sistema NLP: Sentimiento de Mercado
+                </h1>
+                <p class="text-gray-400 text-sm mt-1">
+                    Análisis combinado: <span class="text-blue-400 font-mono">VADER SentimentIntensityAnalyzer</span> + <span class="text-purple-400 font-mono">GPT-4o Complementary Classifier</span>
+                </p>
+            </div>
+            <div class="bg-gray-800 px-4 py-2 rounded-lg text-xs text-gray-400 border border-gray-700">
+                <span class="font-bold text-emerald-400">Umbral VADER:</span> Bullish &ge; 0.05 | Bearish &le; -0.05 | Neutral (otros)
+            </div>
+        </header>
+
+        <!-- Sección de Control de Filtros e Indicadores Gráficos -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            
+            <!-- Panel de Filtros -->
+            <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 shadow-lg flex flex-col justify-between">
+                <h2 class="text-lg font-semibold mb-4 text-gray-200 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-blue-400"></i> Filtros de Búsqueda
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-1">Ticker / Activo</label>
+                        <select id="tickerFilter" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                            <option value="ALL">Todos los activos</option>
+                            <!-- Se poblará dinámicamente -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-1">Fecha Desde</label>
+                        <input type="date" id="dateFrom" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-1">Fecha Hasta</label>
+                        <input type="date" id="dateTo" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+                <button onclick="resetFilters()" class="mt-4 w-full bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 rounded-lg text-sm font-medium transition">
+                    Limpiar Filtros
+                </button>
+            </div>
+
+            <!-- Gráfico 1: Distribución del Sentimiento -->
+            <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 shadow-lg">
+                <h2 class="text-lg font-semibold mb-2 text-gray-200 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-bar text-emerald-400"></i> Distribución de Sentimiento
+                </h2>
+                <div class="h-48 relative">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Gráfico 2: Velocímetro de Sentimiento Agregado -->
+            <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 shadow-lg flex flex-col justify-between">
+                <h2 class="text-lg font-semibold mb-2 text-gray-200 flex items-center gap-2">
+                    <i class="fa-solid fa-gauge-high text-purple-400"></i> Sentimiento Agregado del Mercado
+                </h2>
+                <div class="h-36 relative flex justify-center items-center">
+                    <canvas id="gaugeChart"></canvas>
+                    <div class="absolute text-center mt-12">
+                        <span id="gaugeValue" class="text-2xl font-black block text-white">0</span>
+                        <span id="gaugeLabel" class="text-xs uppercase font-bold tracking-wider">NEUTRAL</span>
+                    </div>
+                </div>
+                <p class="text-center text-xs text-gray-400 mt-2">Índice basado en el promedio ponderado de VADER Compound (-1 a +1)</p>
+            </div>
+
+        </div>
+
+        <!-- Feed de Noticias -->
+        <div>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold flex items-center gap-2 text-gray-100">
+                    <i class="fa-solid fa-newspaper text-amber-400"></i> Feed de Noticias Procesadas 
+                    <span id="newsCount" class="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-mono">15</span>
+                </h2>
+            </div>
+
+            <!-- Tarjetas de Noticias -->
+            <div id="newsFeed" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Se inyecta vía JavaScript -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Lógica de Simulación, Renderizado y Analíticas -->
+    <script>
+        // 15 Noticias Financieras simuladas de forma realista en español con metadatos NLP
+        const newsData = [
+            {
+                id: 1,
+                ticker: "NVDA",
+                titulo: "NVIDIA supera las expectativas del mercado con ingresos récord impulsados por la demanda de chips H200",
+                fuente: "Bloomberg Global",
+                fecha: "2026-06-12",
+                resumen: "El gigante de los semiconductores reportó un incremento del 42% interanual en su división de centros de datos. La demanda insaciable de infraestructura para Inteligencia Artificial generativa mantiene márgenes superiores al 75%, superando las proyecciones de Wall Street.",
+                vader_compound: 0.88,
+                gpt4_sentiment: "BULLISH"
+            },
+            {
+                id: 2,
+                ticker: "TSLA",
+                titulo: "Preocupación por la desaceleración de ventas de vehículos eléctricos en Europa golpea la cotización de Tesla",
+                fuente: "Reuters España",
+                fecha: "2026-06-12",
+                resumen: "Las matriculaciones de Tesla en el mercado europeo cayeron un 14% este último mes debido a la eliminación de subsidios estatales en mercados clave y al aumento de la competencia asiática. Analistas recortan el precio objetivo.",
+                vader_compound: -0.65,
+                gpt4_sentiment: "BEARISH"
+            },
+            {
+                id: 3,
+                ticker: "SAN",
+                titulo: "Banco Santander mantiene sin cambios su política de dividendos para el próximo trimestre",
+                fuente: "Expansión",
+                fecha: "2026-06-11",
+                resumen: "El consejo de administración ratificó la continuidad del payout del 50%. La entidad bancaria afirma encontrarse en una posición cómoda de capital y prefiere mantener la prudencia regulatoria ante la evolución macroeconómica de Latam.",
+                vader_compound: 0.02,
+                gpt4_sentiment: "NEUTRAL"
+            },
+            {
+                id: 4,
+                ticker: "AAPL",
+                titulo: "Apple anuncia su ecosistema Siri-OS integrado completamente con modelos OpenAI locales",
+                fuente: "TechCrunch",
+                fecha: "2026-06-11",
+                resumen: "En la apertura de su conferencia anual de desarrolladores, Apple sorprendió al mercado con integraciones directas a nivel de hardware para IA motivando un repunte masivo de órdenes de compra para el nuevo iPhone 18.",
+                vader_compound: 0.79,
+                gpt4_sentiment: "BULLISH"
+            },
+            {
+                id: 5,
+                ticker: "MSFT",
+                titulo: "Microsoft planea una inversión millonaria en nuevos centros de datos soberanos en Madrid y Barcelona",
+                fuente: "El Economista",
+                fecha: "2026-06-10",
+                resumen: "La tecnológica expandirá sustancialmente su infraestructura de nube en Europa con un despliegue de 3.200 millones de euros, con la finalidad de captar la creciente demanda del sector público y corporativo sujeto a estrictas normativas de datos.",
+                vader_compound: 0.61,
+                gpt4_sentiment: "BULLISH"
+            },
+            {
+                id: 6,
+                ticker: "AMZN",
+                titulo: "La Comisión Europea abre una nueva investigación antimonopolio contra el Marketplace de Amazon",
+                fuente: "Cinco Días",
+                fecha: "2026-06-10",
+                resumen: "Reguladores de Bruselas indagan si el gigante de Seattle está priorizando de manera desleal sus productos de marca blanca frente a terceros distribuidores utilizando datos analíticos internos no públicos.",
+                vader_compound: -0.48,
+                gpt4_sentiment: "BEARISH"
+            },
+            {
+                id: 7,
+                ticker: "BABA",
+                titulo: "Alibaba estabiliza ingresos gracias a la expansión internacional de su división AliExpress Choice",
+                fuente: "Nikkei Asia",
+                fecha: "2026-06-09",
+                resumen: "Aunque el consumo doméstico en China sigue mostrando debilidad estructural, la reestructuración de la logística transfronteriza del grupo impulsó las ventas externas un 18%, compensando las contracciones de su mercado local.",
+                vader_compound: 0.35,
+                gpt4_sentiment: "BULLISH"
+            },
+            {
+                id: 8,
+                ticker: "BBVA",
+                titulo: "El beneficio neto de BBVA escala un 15% apuntalado por el gran desempeño de su filial mexicana",
+                fuente: "El Confidencial",
+                fecha: "2026-06-09",
+                resumen: "La entidad financiera superó los pronósticos del consenso del mercado al totalizar sólidas ganancias netas. El margen de intereses se vio robustecido por las tasas de interés persistentemente elevadas en México.",
+                vader_compound: 0.72,
+                gpt4_sentiment: "BULLISH"
+            },
+            {
+                id: 9,
+                ticker: "FED",
+                titulo: "La Reserva Federal decide mantener estables los tipos de interés en rango de 5.25% - 5.50%",
+                fuente: "Wall Street Journal",
+                fecha: "2026-06-08",
+                resumen: "Jerome Powell argumentó que los últimos datos de inflación subyacente muestran resiliencia a la baja, por lo cual el comité prefiere adoptar una postura de observación prolongada antes de sugerir recortes de tasas en el año.",
+                vader_compound: -0.01,
+                gpt4_sentiment: "NEUTRAL"
+            },
+            {
+                id: 10,
+                ticker: "META",
+                titulo: "Fallo global en la API publicitaria de Meta paraliza campañas de agencias durante seis horas",
+                fuente: "AdWeek",
+                fecha: "2026-06-08",
+                resumen: "Un error crítico en el despliegue de código afectó los servidores de anuncios de Instagram y Facebook, provocando pérdidas millonarias estimadas en facturación diaria y el malestar de anunciantes corporativos.",
+                vader_compound: -0.52,
+                gpt4_sentiment: "BEARISH"
+            },
+            {
+                id: 11,
+                ticker: "GOOGL",
+                titulo: "Alphabet presenta Gemma-3, su nuevo modelo open-source optimizado para procesadores móviles",
+                fuente: "VentureBeat",
+                fecha: "2026-06-07",
+                resumen: "La matriz de Google liberó nuevos pesos para modelos compactos de alta eficiencia. Analistas ven esto como un movimiento estratégico brillante para bloquear la distribución de Apple y dominar el mercado open-source.",
+                vader_compound: 0.58,
+                gpt4_sentiment: "BULLISH"
+            },
+            {
+                id: 12,
+                ticker: "NFLX",
+                titulo: "Netflix pierde tracción de suscriptores en Latinoamérica ante el alza generalizada de tarifas",
+                fuente: "Plataformas TV",
+                fecha: "2026-06-07",
+                resumen: "El reciente endurecimiento contra las cuentas compartidas y el aumento de precios en planes estándar provocó una migración de usuarios hacia alternativas más económicas como Max y Disney+ en la región.",
+                vader_compound: -0.39,
+                gpt4_sentiment: "BEARISH"
+            },
+            {
+                id: 13,
+                ticker: "TEF",
+                titulo: "Telefónica suscribe alianza estratégica con Starlink para conectar empresas en zonas remotas",
+                fuente: "Expansión España",
+                fecha: "2026-06-06",
+                resumen: "Telefónica Global Solutions integrará de manera oficial las soluciones de órbita baja de Starlink en su portafolio B2B para todo el mercado hispanohablante, potenciando soluciones para minería y agricultura de precisión.",
+                vader_compound: 0.45,
+                gpt4_sentiment: "BULLISH"
+            },
+            {
+                id: 14,
+                ticker: "REP",
+                titulo: "Repsol inicia parada técnica programada en su refinería de Cartagena para optimización ambiental",
+                fuente: "Energía 16",
+                fecha: "2026-06-06",
+                resumen: "Los trabajos requerirán 45 días de ejecuciones e inversiones orientadas al despliegue de hidrógeno verde. El volumen de producción refinada se reducirá de manera temporal, estando ya cubierto mediante reservas estratégicas.",
+                vader_compound: 0.00,
+                gpt4_sentiment: "NEUTRAL"
+            },
+            {
+                id: 15,
+                ticker: "BTC",
+                titulo: "Presión regulatoria en EE.UU. sobre protocolos DeFi arrastra la cotización de Bitcoin y criptoactivos",
+                fuente: "CoinDesk",
+                fecha: "2026-06-05",
+                resumen: "La SEC emitió notificaciones judiciales preventivas a múltiples proveedores de liquidez descentralizada. El nerviosismo institucional causó liquidaciones en cascada en los principales exchanges de criptomonedas.",
+                vader_compound: -0.71,
+                gpt4_sentiment: "BEARISH"
+            }
+        ];
+
+        // Instancias globales de gráficos para su posterior actualización/destrucción dinámica
+        let distributionChartInstance = null;
+        let gaugeChartInstance = null;
+
+        // Configuración inicial al cargar el DOM
+        document.addEventListener("DOMContentLoaded", () => {
+            populateTickerFilter();
+            initDateFilters();
+            filterAndRender();
+
+            // Escuchas de eventos para filtrado interactivo
+            document.getElementById("tickerFilter").addEventListener("change", filterAndRender);
+            document.getElementById("dateFrom").addEventListener("change", filterAndRender);
+            document.getElementById("dateTo").addEventListener("change", filterAndRender);
+        });
+
+        // Poblado dinámico del filtro de selectores (Tickers únicos)
+        function populateTickerFilter() {
+            const select = document.getElementById("tickerFilter");
+            const tickers = [...new Set(newsData.map(item => item.ticker))].sort();
+            tickers.forEach(ticker => {
+                const opt = document.createElement("option");
+                opt.value = ticker;
+                opt.textContent = ticker;
+                select.appendChild(opt);
+            });
+        }
+
+        // Asignación de rango inicial a los inputs de fecha basados en la data
+        function initDateFilters() {
+            const dates = newsData.map(item => new Date(item.fecha));
+            const minDate = new Date(Math.min(...dates)).toISOString().split('T')[0];
+            const maxDate = new Date(Math.max(...dates)).toISOString().split('T')[0];
+            
+            document.getElementById("dateFrom").value = minDate;
+            document.getElementById("dateTo").value = maxDate;
+        }
+
+        // Reseteo de controles de filtrado
+        function resetFilters() {
+            document.getElementById("tickerFilter").value = "ALL";
+            initDateFilters();
+            filterAndRender();
+        }
+
+        // Función Núcleo: Filtra datos según controles y actualiza UI + Gráficos
+        function filterAndRender() {
+            const selectedTicker = document.getElementById("tickerFilter").value;
+            const dateFrom = document.getElementById("dateFrom").value;
+            const dateTo = document.getElementById("dateTo").value;
+
+            // Filtrado lógico
+            const filteredData = newsData.filter(item => {
+                const matchTicker = (selectedTicker === "ALL" || item.ticker === selectedTicker);
+                const matchDate = (!dateFrom || item.fecha >= dateFrom) && (!dateTo || item.fecha <= dateTo);
+                return matchTicker && matchDate;
+            });
+
+            // Actualizar contador del Feed
+            document.getElementById("newsCount").textContent = filteredData.length;
+
+            // Renderizados
+            renderNewsCards(filteredData);
+            updateCharts(filteredData);
+        }
+
+        // Generador visual de las tarjetas del Feed de Noticias
+        function renderNewsCards(data) {
+            const container = document.getElementById("newsFeed");
+            container.innerHTML = ""; // Limpieza previa
+
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-gray-500 bg-gray-800 rounded-xl border border-dashed border-gray-700">
+                        <i class="fa-solid fa-folder-open text-4xl mb-3"></i>
+                        <p>No se encontraron noticias bajo los criterios de filtrado seleccionados.</p>
+                    </div>`;
+                return;
+            }
+
+            data.forEach(news => {
+                // Definición visual de estilos según clasificación GPT-4o / VADER
+                let badgeColor, badgeBg, iconClass, borderColor;
+
+                if (news.gpt4_sentiment === "BULLISH") {
+                    badgeColor = "text-emerald-400";
+                    badgeBg = "bg-emerald-500/10";
+                    borderColor = "border-emerald-500/20";
+                    iconClass = "fa-solid fa-arrow-trend-up text-emerald-400";
+                } else if (news.gpt4_sentiment === "BEARISH") {
+                    badgeColor = "text-rose-400";
+                    badgeBg = "bg-rose-500/10";
+                    borderColor = "border-rose-500/20";
+                    iconClass = "fa-solid fa-arrow-trend-down text-rose-400";
+                } else {
+                    badgeColor = "text-gray-400";
+                    badgeBg = "bg-gray-500/10";
+                    borderColor = "border-gray-700";
+                    iconClass = "fa-solid fa-minus text-gray-400";
+                }
+
+                const cardHtml = `
+                    <div class="bg-gray-800 rounded-xl border ${borderColor} p-5 flex flex-col justify-between hover:shadow-2xl transition duration-200">
+                        <div>
+                            <!-- Fila Superior Meta -->
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="bg-blue-600/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded text-xs font-bold font-mono">
+                                    ${news.ticker}
+                                </span>
+                                <div class="text-xs text-gray-400 flex items-center gap-2">
+                                    <span>${news.fuente}</span>
+                                    <span>•</span>
+                                    <span>${news.fecha}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Título -->
+                            <h3 class="text-base font-bold text-gray-100 leading-snug mb-2 hover:text-blue-400 transition cursor-pointer">
+                                ${news.titulo}
+                            </h3>
+                            
+                            <!-- Resumen corporativo -->
+                            <p class="text-xs text-gray-400 line-clamp-3 mb-4">
+                                ${news.resumen}
+                            </p>
+                        </div>
+
+                        <!-- Panel Inferior de Métricas NLP -->
+                        <div class="pt-3 border-t border-gray-700/60 flex justify-between items-center mt-auto">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] uppercase font-bold text-gray-500">VADER Compound</span>
+                                <span class="text-xs font-mono font-bold ${news.vader_compound >= 0.05 ? 'text-emerald-400' : news.vader_compound <= -0.05 ? 'text-rose-400' : 'text-gray-400'}">
+                                    ${news.vader_compound > 0 ? '+' : ''}${news.vader_compound.toFixed(2)}
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-2 ${badgeBg} ${badgeColor} px-3 py-1 rounded-lg border border-current/10">
+                                <i class="${iconClass}"></i>
+                                <span class="text-xs font-bold font-mono">${news.gpt4_sentiment}</span>
+                            </div>
+                        </div>
+                    </div>`;
+                container.insertAdjacentHTML("beforeend", cardHtml);
+            });
+        }
+
+        // Orquestador de actualizaciones de gráficos analíticos
+        function updateCharts(filteredData) {
+            // 1. Conteo de categorías para gráfico de distribución
+            let bullishCount = 0;
+            let neutralCount = 0;
+            let bearishCount = 0;
+            let totalCompound = 0;
+
+            filteredData.forEach(item => {
+                totalCompound += item.vader_compound;
+                if (item.gpt4_sentiment === "BULLISH") bullishCount++;
+                else if (item.gpt4_sentiment === "BEARISH") bearishCount++;
+                else neutralCount++;
+            });
+
+            const totalItems = filteredData.length || 1;
+            const avgCompound = totalCompound / totalItems; // Rango teórico de -1 a +1
+
+            // ---- GRÁFICO 1: BARRAS HORIZONTALES (DISTRIBUCIÓN) ----
+            if (distributionChartInstance) distributionChartInstance.destroy();
+            
+            const ctxBar = document.getElementById('distributionChart').getContext('2d');
+            distributionChartInstance = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: ['Bullish', 'Neutral', 'Bearish'],
+                    datasets: [{
+                        data: [bullishCount, neutralCount, bearishCount],
+                        backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(107, 114, 128, 0.8)', 'rgba(244, 63, 94, 0.8)'],
+                        borderColor: ['#10b981', '#6b7280', '#f43f5e'],
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#374151' }, ticks: { color: '#9ca3af', precision: 0 } },
+                        y: { grid: { display: false }, ticks: { color: '#9ca3af' } }
+                    }
+                }
+            });
+
+            // ---- GRÁFICO 2: GAUGE VELOCÍMETRO (SENTIMIENTO AGREGADO) ----
+            // Transformar rango analítico VADER (-1 a 1) a escala clásica de mercado (0 a 100)
+            const scaledGaugeValue = Math.round(((avgCompound + 1) / 2) * 100);
+            
+            // Determinar etiquetas cualitativas del indicador agregado
+            let aggregateLabel = "NEUTRAL";
+            let labelColor = "#9ca3af";
+            if (avgCompound >= 0.15) { aggregateLabel = "ALCISTA (GREED)"; labelColor = "#10b981"; }
+            else if (avgCompound <= -0.15) { aggregateLabel = "BAJISTA (FEAR)"; labelColor = "#f43f5e"; }
+
+            document.getElementById("gaugeValue").textContent = filteredData.length ? scaledGaugeValue : "-";
+            document.getElementById("gaugeLabel").textContent = filteredData.length ? aggregateLabel : "SIN DATOS";
+            document.getElementById("gaugeLabel").style.color = labelColor;
+
+            if (gaugeChartInstance) gaugeChartInstance.destroy();
+
+            const ctxGauge = document.getElementById('gaugeChart').getContext('2d');
+            gaugeChartInstance = new Chart(ctxGauge, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: filteredData.length ? [scaledGaugeValue, 100 - scaledGaugeValue] : [0, 100],
+                        backgroundColor: [labelColor, '#374151'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    rotation: 270, // Inicio del semicírculo inferior izquierdo
+                    circumference: 180, // Generar arco de 180 grados
+                    cutout: '80%', // Efecto de anillo delgado para el tacómetro
+                    plugins: { tooltip: { enabled: false } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InvestAI — Módulos 6.9 / 6.10 / 6.11 Arquitecto Maestro</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #1F3864; --gold: #C5961A;
+      --green: #16a34a; --red: #dc2626;
+      --bg: #0f172a; --surface: #1e293b; --border: #334155;
+      --text: #e2e8f0; --muted: #94a3b8;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); }
+
+    /* TOPBAR */
+    .topbar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      height: 52px; display: flex; align-items: center; padding: 0 16px; gap: 16px;
+    }
+    .logo-box { width: 30px; height: 30px; background: var(--gold); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #fff; font-size: 13px; flex-shrink: 0; }
+    .app-name { font-weight: 800; font-size: 15px; color: #fff; }
+    .app-sub { font-size: 10px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .live-chip { display: flex; align-items: center; gap: 5px; background: rgba(22,163,74,.15); border: 1px solid rgba(22,163,74,.3); border-radius: 12px; padding: 3px 10px; font-size: 11px; color: #4ade80; font-weight: 700; }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+    .ticker-select {
+      background: var(--border); border: 1px solid #475569; border-radius: 6px;
+      color: var(--text); padding: 5px 10px; font-size: 13px; cursor: pointer;
+    }
+    .ticker-select option { background: var(--surface); }
+
+    /* TABS */
+    .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 16px; }
+    .tab { padding: 11px 16px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .2s; white-space: nowrap; }
+    .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .tab:hover:not(.active) { color: var(--text); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ─── GRID LAYOUT (6.9) ─── */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 240px 1fr 280px;
+      height: calc(100vh - 92px);
+      overflow: hidden;
+    }
+
+    /* Left sidebar — AI Console */
+    .ai-console {
+      background: var(--surface); border-right: 1px solid var(--border);
+      overflow-y: auto; padding: 14px;
+    }
+    .console-section { margin-bottom: 16px; }
+    .cs-title { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+    .model-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 8px; border-radius: 6px; margin-bottom: 4px;
+      cursor: pointer; transition: background .15s;
+    }
+    .model-item:hover { background: rgba(255,255,255,.04); }
+    .model-check {
+      width: 16px; height: 16px; border-radius: 4px; border: 1px solid #475569;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      transition: all .15s;
+    }
+    .model-check.on { background: var(--gold); border-color: var(--gold); }
+    .model-check.on::after { content: '✓'; font-size: 10px; color: #fff; font-weight: 900; }
+    .model-name { font-size: 12px; flex: 1; }
+    .model-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 8px; }
+    .badge-cls { background: rgba(31,56,100,.5); color: #93c5fd; }
+    .badge-reg { background: rgba(197,150,26,.2); color: #fde68a; }
+    .badge-nlp { background: rgba(22,163,74,.2); color: #86efac; }
+
+    .signal-box {
+      background: rgba(197,150,26,.1); border: 1px solid rgba(197,150,26,.3);
+      border-radius: 8px; padding: 12px; text-align: center;
+    }
+    .sig-label { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+    .sig-main { font-size: 28px; font-weight: 900; color: var(--gold); margin: 4px 0; animation: sigPulse 2s infinite; }
+    @keyframes sigPulse { 0%,100%{opacity:1}50%{opacity:.7} }
+    .sig-conf { font-size: 12px; color: var(--muted); }
+    .sig-conf span { color: #4ade80; font-weight: 700; }
+
+    .hyper-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 6px; }
+    .hyper-key { color: var(--muted); }
+    .hyper-val { color: var(--text); font-weight: 600; }
+    input[type=range] { width: 100%; accent-color: var(--gold); margin-top: 2px; }
+
+    /* Center — Main chart */
+    .chart-main { overflow: hidden; display: flex; flex-direction: column; }
+    .chart-toolbar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 8px 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .iv-btn {
+      padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: all .15s;
+    }
+    .iv-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .iv-btn:hover:not(.active) { border-color: var(--gold); color: var(--gold); }
+    .chart-body { flex: 1; overflow: hidden; }
+
+    /* Right sidebar — metrics */
+    .metrics-panel {
+      background: var(--surface); border-left: 1px solid var(--border);
+      overflow-y: auto; padding: 14px;
+    }
+    .metric-card {
+      background: rgba(255,255,255,.03); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+    }
+    .mc-label { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+    .mc-val { font-size: 18px; font-weight: 800; }
+    .mc-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .green { color: #4ade80; }
+    .red   { color: #f87171; }
+    .gold  { color: var(--gold); }
+    .accent-bar { width: 100%; height: 3px; border-radius: 2px; margin-top: 8px; background: rgba(255,255,255,.08); }
+    .accent-fill { height: 100%; border-radius: 2px; background: var(--gold); }
+
+    /* ─── BACKTESTING 6.11 ─── */
+    #panel-bt { padding: 16px; background: var(--bg); }
+    .bt-kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+    .bt-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+    .bt-kpi-lbl { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .bt-kpi-val { font-size: 22px; font-weight: 900; margin: 4px 0; }
+    .bt-kpi-sub { font-size: 11px; color: var(--muted); }
+    .bt-layout { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+    .bt-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+    .bt-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 12px; }
+    .trade-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .trade-table th { padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+    .trade-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .trade-win { color: #4ade80; font-weight: 700; }
+    .trade-loss { color: #f87171; font-weight: 700; }
+    .monthly-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; }
+    .month-cell { background: rgba(255,255,255,.04); border-radius: 4px; padding: 6px; text-align: center; font-size: 10px; }
+    .month-name { color: var(--muted); margin-bottom: 2px; }
+    .month-val { font-weight: 700; font-size: 11px; }
+
+    @media(max-width:900px) {
+      .dashboard-grid { grid-template-columns: 1fr; height: auto; }
+      .ai-console, .metrics-panel { height: auto; border: none; border-bottom: 1px solid var(--border); }
+      .bt-kpis { grid-template-columns: 1fr 1fr; }
+      .bt-layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo-box">AI</div>
+  <div><div class="app-name">InvestAI</div><div class="app-sub">Arquitecto Maestro · Módulos 6.9 / 6.10 / 6.11</div></div>
+  <div class="topbar-right">
+    <select class="ticker-select" id="mainTicker" onchange="rebuildDashboard()">
+      <option value="AAPL">AAPL</option>
+      <option value="MSFT">MSFT</option>
+      <option value="NVDA">NVDA</option>
+      <option value="BTC">BTC-USD</option>
+    </select>
+    <div class="live-chip"><div class="live-dot"></div>SISTEMA EN VIVO</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('dashboard')">🗂️ 6.9 Dashboard Completo</div>
+  <div class="tab" onclick="showTab('console')">🤖 6.10 Consola IA</div>
+  <div class="tab" onclick="showTab('bt')">📉 6.11 Backtesting VectorBT</div>
+</div>
+
+<!-- ─── 6.9 DASHBOARD ─── -->
+<div class="panel active" id="panel-dashboard">
+  <div class="dashboard-grid">
+
+    <!-- LEFT: AI Console mini -->
+    <div class="ai-console" id="left-console">
+      <div class="console-section">
+        <div class="cs-title">Señal del Ensamblado</div>
+        <div class="signal-box">
+          <div class="sig-label">Señal Consolidada</div>
+          <div class="sig-main">COMPRAR</div>
+          <div class="sig-conf">Confianza: <span>87.3%</span></div>
+        </div>
+      </div>
+      <div class="console-section">
+        <div class="cs-title">Modelos Activos</div>
+        <div id="model-list-mini"></div>
+      </div>
+      <div class="console-section">
+        <div class="cs-title">Hiperparámetros</div>
+        <div class="hyper-row"><span class="hyper-key">Ventana Temporal</span><span class="hyper-val" id="hp-window">60d</span></div>
+        <input type="range" min="20" max="120" value="60" oninput="document.getElementById('hp-window').textContent=this.value+'d'">
+        <div class="hyper-row" style="margin-top:8px"><span class="hyper-key">Learning Rate</span><span class="hyper-val" id="hp-lr">0.001</span></div>
+        <input type="range" min="1" max="10" value="1" step="1" oninput="document.getElementById('hp-lr').textContent=(0.0001*Math.pow(10,this.value/3)).toFixed(4)">
+        <div class="hyper-row" style="margin-top:8px"><span class="hyper-key">Épocas LSTM</span><span class="hyper-val" id="hp-epochs">100</span></div>
+        <input type="range" min="50" max="300" value="100" step="10" oninput="document.getElementById('hp-epochs').textContent=this.value">
+      </div>
+    </div>
+
+    <!-- CENTER: Candlestick -->
+    <div class="chart-main">
+      <div class="chart-toolbar">
+        <span style="font-size:11px;color:var(--muted);font-weight:700;margin-right:4px">INTERVALO:</span>
+        <button class="iv-btn" onclick="setIv('1D',this)">1D</button>
+        <button class="iv-btn active" onclick="setIv('1M',this)">1M</button>
+        <button class="iv-btn" onclick="setIv('3M',this)">3M</button>
+        <button class="iv-btn" onclick="setIv('1A',this)">1A</button>
+      </div>
+      <div class="chart-body" id="dash-chart"></div>
+    </div>
+
+    <!-- RIGHT: Metrics -->
+    <div class="metrics-panel" id="right-metrics">
+      <div class="cs-title" style="margin-bottom:10px">Métricas en Tiempo Real</div>
+      <div class="metric-card">
+        <div class="mc-label">Precio Actual</div>
+        <div class="mc-val" id="rm-price">$189.47</div>
+        <div class="mc-sub green" id="rm-chg">▲ +2.34 (+1.25%)</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">Accuracy SVC</div>
+        <div class="mc-val green">84.5%</div>
+        <div class="mc-sub">Kernel RBF · C=1.0</div>
+        <div class="accent-bar"><div class="accent-fill" style="width:84.5%"></div></div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">RMSE LSTM</div>
+        <div class="mc-val gold">$3.42</div>
+        <div class="mc-sub">MAE: $2.87 · R²: 0.94</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">Sharpe Ratio</div>
+        <div class="mc-val green">1.82</div>
+        <div class="mc-sub">Benchmark: > 1.0</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">Win Rate Backtest</div>
+        <div class="mc-val green">62.4%</div>
+        <div class="mc-sub">P. Factor: 2.14</div>
+        <div class="accent-bar"><div class="accent-fill" style="width:62.4%"></div></div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">Max Drawdown</div>
+        <div class="mc-val red">−7.3%</div>
+        <div class="mc-sub">Desde máximo</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">Retorno Total YTD</div>
+        <div class="mc-val green">+18.4%</div>
+        <div class="mc-sub">S&P 500: +11.2%</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">Sentimiento NLP</div>
+        <div class="mc-val gold">BULLISH</div>
+        <div class="mc-sub">Score VADER: +0.62</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 6.10 CONSOLE ─── -->
+<div class="panel" id="panel-console" style="padding:16px;background:var(--bg)">
+  <div style="display:grid;grid-template-columns:300px 1fr;gap:16px">
+    <div class="bt-card">
+      <div class="bt-title">🤖 Modelos del Core de IA</div>
+      <div id="model-list-full"></div>
+    </div>
+    <div>
+      <div class="bt-card" style="margin-bottom:16px">
+        <div class="bt-title">⚙️ Hiperparámetros Globales</div>
+        <div id="hp-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px"></div>
+      </div>
+      <div class="bt-card">
+        <div class="bt-title">📊 Estado del Sistema</div>
+        <div id="sys-status-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 6.11 BACKTESTING ─── -->
+<div class="panel" id="panel-bt">
+  <div class="bt-kpis" id="bt-kpis"></div>
+  <div class="bt-layout">
+    <div>
+      <div class="bt-card" style="margin-bottom:16px">
+        <div class="bt-title">📈 Curva de Equity VectorBT</div>
+        <div id="equity-bt-chart"></div>
+      </div>
+      <div class="bt-card">
+        <div class="bt-title">📋 Historial de Trades</div>
+        <table class="trade-table">
+          <thead><tr><th>#</th><th>Fecha Entrada</th><th>Fecha Salida</th><th>Tipo</th><th>Precio Ent.</th><th>Precio Sal.</th><th>P&L</th><th>%</th></tr></thead>
+          <tbody id="trades-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="bt-card" style="margin-bottom:16px">
+        <div class="bt-title">📅 Retornos Mensuales</div>
+        <div class="monthly-grid" id="monthly-grid"></div>
+      </div>
+      <div class="bt-card">
+        <div class="bt-title">📐 Comparativa de Modelos</div>
+        <canvas id="model-compare-chart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const MODELS = [
+  { id: 'svc',        name: 'SVC Classifier',     type: 'cls', on: true },
+  { id: 'lstm-cls',   name: 'LSTM Classifier',    type: 'cls', on: true },
+  { id: 'gru',        name: 'GRU Classifier',     type: 'cls', on: true },
+  { id: 'xgboost',    name: 'XGBoost Classifier', type: 'cls', on: true },
+  { id: 'rf',         name: 'Random Forest',      type: 'cls', on: false },
+  { id: 'knn',        name: 'K-NN Classifier',    type: 'cls', on: false },
+  { id: 'lstm-reg',   name: 'LSTM Regressor',     type: 'reg', on: true },
+  { id: 'svr',        name: 'SVR Regressor',      type: 'reg', on: true },
+  { id: 'arima-lstm', name: 'ARIMA-LSTM Híbrido', type: 'reg', on: true },
+  { id: 'arima',      name: 'ARIMA',              type: 'reg', on: false },
+  { id: 'vader',      name: 'VADER Sentiment',    type: 'nlp', on: true },
+  { id: 'finbert',    name: 'FinBERT NLP',        type: 'nlp', on: false },
+];
+
+const TICKER_DATA = {
+  AAPL: { price: 189.47, chg: 2.34, chgPct: 1.25, base: 170 },
+  MSFT: { price: 412.30, chg: 3.56, chgPct: 0.87, base: 390 },
+  NVDA: { price: 875.60, chg: 26.70, chgPct: 3.14, base: 800 },
+  BTC:  { price: 67240, chg: 1372, chgPct: 2.08, base: 60000 }
+};
+
+let dashInterval = '1M';
+
+function seed(n) { return Math.abs(Math.sin(n * 127.1 + 311.7) * 43758.5453 % 1); }
+
+function genOHLC(ticker, nDays) {
+  const cfg = TICKER_DATA[ticker];
+  let close = cfg.base;
+  const vol = cfg.base * 0.025;
+  const dates = [], opens = [], highs = [], lows = [], closes = [];
+  const now = new Date('2026-06-13');
+  for (let i = nDays; i >= 0; i--) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
+    const idx = (ticker.charCodeAt(0) + i) * 1.3;
+    const drift = (seed(idx) - 0.48) * vol * 0.4;
+    const range = seed(idx + 5) * vol * 0.7 + vol * 0.2;
+    const open = close;
+    close = Math.max(close + drift, cfg.base * 0.6);
+    dates.push(d.toISOString().split('T')[0]);
+    opens.push(+open.toFixed(2));
+    highs.push(+(Math.max(open, close) + range * seed(idx + 2)).toFixed(2));
+    lows.push(+(Math.min(open, close) - range * seed(idx + 3)).toFixed(2));
+    closes.push(+close.toFixed(2));
+  }
+  return { dates, opens, highs, lows, closes };
+}
+
+const INTERVALS = { '1D': 5, '1M': 30, '3M': 90, '1A': 252 };
+
+function sma(arr, n) { return arr.map((_, i) => i < n - 1 ? null : arr.slice(i-n+1,i+1).reduce((a,b)=>a+b,0)/n); }
+
+// ─── DASHBOARD CHART ─────────────────────────────────────────────────────────
+function rebuildDashboard() {
+  const ticker = document.getElementById('mainTicker').value;
+  const nDays = INTERVALS[dashInterval];
+  const d = genOHLC(ticker, nDays);
+  const s20 = sma(d.closes, Math.min(20, d.closes.length));
+  const s50 = sma(d.closes, Math.min(50, d.closes.length));
+
+  // SVC signals scattered on top
+  const buyIdx = d.closes.filter((_, i) => i % 5 === 0);
+  const sellIdx = d.closes.filter((_, i) => i % 7 === 1);
+
+  const traces = [
+    { type:'candlestick', name: ticker, x:d.dates, open:d.opens, high:d.highs, low:d.lows, close:d.closes, increasing:{line:{color:'#4ade80',width:1},fillcolor:'#4ade80'}, decreasing:{line:{color:'#f87171',width:1},fillcolor:'#f87171'} },
+    { type:'scatter', name:'SMA 20', x:d.dates, y:s20, mode:'lines', line:{color:'#E67E22',width:1.5}, hoverinfo:'skip' },
+    { type:'scatter', name:'SMA 50', x:d.dates, y:s50, mode:'lines', line:{color:'#9B59B6',width:1.5}, hoverinfo:'skip' }
+  ];
+
+  const layout = {
+    paper_bgcolor:'#1e293b', plot_bgcolor:'#1e293b',
+    margin:{l:60,r:16,t:10,b:30}, height: window.innerHeight > 800 ? 450 : 320,
+    xaxis:{type:'category', rangeslider:{visible:false}, showgrid:false, tickfont:{size:10,color:'#64748b'}, nticks:8},
+    yaxis:{showgrid:true, gridcolor:'#334155', tickfont:{size:11,color:'#94a3b8'}, tickprefix:'$'},
+    legend:{orientation:'h',y:1.06,font:{size:10,color:'#94a3b8'}},
+    hovermode:'x unified'
+  };
+  Plotly.newPlot('dash-chart', traces, layout, {responsive:true, displayModeBar:false});
+
+  // Update sidebar prices
+  const td = TICKER_DATA[ticker];
+  document.getElementById('rm-price').textContent = '$' + td.price.toLocaleString();
+  const chgEl = document.getElementById('rm-chg');
+  chgEl.textContent = `▲ +${td.chg} (+${td.chgPct}%)`;
+  chgEl.className = 'mc-sub green';
+}
+
+function setIv(iv, btn) {
+  dashInterval = iv;
+  document.querySelectorAll('.iv-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  rebuildDashboard();
+}
+
+// ─── MODEL LIST ──────────────────────────────────────────────────────────────
+function renderModelList(containerId, compact) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = MODELS.map(m => {
+    const badgeClass = m.type === 'cls' ? 'badge-cls' : m.type === 'reg' ? 'badge-reg' : 'badge-nlp';
+    const typeLabel = m.type === 'cls' ? 'CLS' : m.type === 'reg' ? 'REG' : 'NLP';
+    return `
+      <div class="model-item" onclick="toggleModel('${m.id}')">
+        <div class="model-check ${m.on ? 'on' : ''}" id="chk-${m.id}"></div>
+        <span class="model-name" style="color:${m.on ? 'var(--text)' : 'var(--muted)'}" id="mn-${m.id}">${m.name}</span>
+        ${!compact ? `<span class="model-badge ${badgeClass}">${typeLabel}</span>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function toggleModel(id) {
+  const m = MODELS.find(x => x.id === id);
+  m.on = !m.on;
+  ['chk-' + id, 'chk-' + id + '-2'].forEach(cid => {
+    const el = document.getElementById(cid); if (el) { el.classList.toggle('on', m.on); }
+  });
+  ['mn-' + id, 'mn-' + id + '-2'].forEach(mid => {
+    const el = document.getElementById(mid); if (el) { el.style.color = m.on ? 'var(--text)' : 'var(--muted)'; }
+  });
+}
+
+// ─── 6.10 HYPERPARAMS ─────────────────────────────────────────────────────────
+const HYPERPARAMS = [
+  { key: 'Ventana Temporal', id: 'win', min: 20, max: 120, val: 60, suffix: 'd', step: 5 },
+  { key: 'Learning Rate', id: 'lr', min: 1, max: 10, val: 4, suffix: '', step: 1, fmt: v => (0.0001*Math.pow(10,v/3)).toFixed(4) },
+  { key: 'Épocas LSTM', id: 'ep', min: 50, max: 300, val: 100, suffix: '', step: 10 },
+  { key: 'Batch Size', id: 'bs', min: 8, max: 128, val: 32, suffix: '', step: 8 },
+  { key: 'Dropout LSTM', id: 'dp', min: 0, max: 50, val: 20, suffix: '%', step: 5 },
+  { key: 'C — SVM', id: 'svc', min: 1, max: 100, val: 10, suffix: '', step: 1, fmt: v => (v/10).toFixed(1) },
+  { key: 'n_estimators XGB', id: 'xgb', min: 50, max: 500, val: 200, suffix: '', step: 50 },
+  { key: 'Max Depth XGB', id: 'dep', min: 3, max: 10, val: 5, suffix: '', step: 1 }
+];
+
+function renderHyperparams() {
+  const grid = document.getElementById('hp-grid');
+  if (!grid) return;
+  grid.innerHTML = HYPERPARAMS.map(hp => {
+    const initDisplay = hp.fmt ? hp.fmt(hp.val) : hp.val + hp.suffix;
+    return `
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">
+          <span style="color:var(--muted)">${hp.key}</span>
+          <span style="font-weight:700;color:var(--gold)" id="hpv-${hp.id}">${initDisplay}</span>
+        </div>
+        <input type="range" min="${hp.min}" max="${hp.max}" value="${hp.val}" step="${hp.step}"
+          oninput="document.getElementById('hpv-${hp.id}').textContent=${hp.fmt ? `'${hp.fmt ? hp.fmt.toString().replace(/\n/g,'') : ''}' + this.value` : `this.value + '${hp.suffix}'`}">
+      </div>`;
+  }).join('');
+  // Re-bind with proper fmt
+  HYPERPARAMS.forEach(hp => {
+    const inputs = document.querySelectorAll(`input[type=range]`);
+  });
+}
+
+function renderSysStatus() {
+  const grid = document.getElementById('sys-status-grid');
+  if (!grid) return;
+  const statuses = [
+    { label: 'Core de IA', val: 'ACTIVO', color: '#4ade80', sub: '9/12 modelos cargados' },
+    { label: 'Base de Datos', val: 'CONECTADO', color: '#4ade80', sub: 'Supabase PostgreSQL' },
+    { label: 'API Broker', val: 'PAPER', color: '#fbbf24', sub: 'TWS 10.19 — Simulado' },
+    { label: 'Feed de Mercado', val: 'VIVO', color: '#4ade80', sub: 'Yahoo Finance RT' },
+    { label: 'NLP Pipeline', val: 'ACTIVO', color: '#4ade80', sub: 'VADER + FinBERT' },
+    { label: 'VectorBT', val: 'LISTO', color: '#93c5fd', sub: 'Última ejecución: hace 2h' }
+  ];
+  grid.innerHTML = statuses.map(s => `
+    <div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:12px">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">${s.label}</div>
+      <div style="font-size:14px;font-weight:800;color:${s.color}">${s.val}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:3px">${s.sub}</div>
+    </div>`).join('');
+}
+
+// ─── 6.11 BACKTESTING ─────────────────────────────────────────────────────────
+function renderBT() {
+  // KPIs
+  const kpis = [
+    { lbl: 'Retorno Total', val: '+24.7%', sub: 'AAPL · 180 días', color: '#4ade80' },
+    { lbl: 'Sharpe Ratio', val: '1.82', sub: 'Ajustado por riesgo', color: '#4ade80' },
+    { lbl: 'Max Drawdown', val: '−7.3%', sub: 'Desde máximo', color: '#f87171' },
+    { lbl: 'Win Rate', val: '62.4%', sub: '128 / 205 trades', color: '#fbbf24' }
+  ];
+  document.getElementById('bt-kpis').innerHTML = kpis.map(k => `
+    <div class="bt-kpi">
+      <div class="bt-kpi-lbl">${k.lbl}</div>
+      <div class="bt-kpi-val" style="color:${k.color}">${k.val}</div>
+      <div class="bt-kpi-sub">${k.sub}</div>
+    </div>`).join('');
+
+  // Equity curve
+  const n = 180, labels = [], portData = [], benchData = [];
+  let pv = 100000, bv = 100000;
+  const now = new Date('2026-06-13');
+  for (let i = n; i >= 0; i--) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
+    labels.push(d.toISOString().split('T')[0]);
+    pv *= 1 + (Math.sin(i * 0.31) * 0.012 + 0.0018);
+    bv *= 1 + (Math.sin(i * 0.27) * 0.009 + 0.0011);
+    portData.push(+pv.toFixed(2));
+    benchData.push(+bv.toFixed(2));
+  }
+  Plotly.newPlot('equity-bt-chart', [
+    { x: labels, y: portData, type:'scatter', mode:'lines', name:'InvestAI Strategy', fill:'tozeroy', fillcolor:'rgba(31,56,100,0.2)', line:{color:'#93c5fd',width:2.5} },
+    { x: labels, y: benchData, type:'scatter', mode:'lines', name:'S&P 500', line:{color:'#C5961A',width:1.5, dash:'dot'} }
+  ], {
+    paper_bgcolor:'#1e293b', plot_bgcolor:'#1e293b', height:240,
+    margin:{l:65,r:16,t:10,b:36},
+    xaxis:{showgrid:false,tickfont:{size:10,color:'#64748b'},nticks:6, type:'category'},
+    yaxis:{showgrid:true,gridcolor:'#334155',tickfont:{size:11,color:'#94a3b8'}, tickprefix:'$'},
+    legend:{font:{size:10,color:'#94a3b8'}},
+    hovermode:'x unified'
+  }, {responsive:true, displayModeBar:false});
+
+  // Trades table
+  const trades = [
+    { id:1, entry:'2026-01-08', exit:'2026-01-15', type:'BUY', ep:175.30, xp:181.20, win:true },
+    { id:2, entry:'2026-01-22', exit:'2026-02-01', type:'SELL', ep:184.50, xp:179.80, win:true },
+    { id:3, entry:'2026-02-10', exit:'2026-02-18', type:'BUY', ep:177.40, xp:172.10, win:false },
+    { id:4, entry:'2026-03-05', exit:'2026-03-14', type:'BUY', ep:180.20, xp:188.60, win:true },
+    { id:5, entry:'2026-03-20', exit:'2026-03-28', type:'SELL', ep:191.40, xp:186.70, win:true },
+    { id:6, entry:'2026-04-08', exit:'2026-04-16', type:'BUY', ep:183.50, xp:190.20, win:true },
+    { id:7, entry:'2026-04-25', exit:'2026-05-03', type:'SELL', ep:194.80, xp:197.30, win:false },
+    { id:8, entry:'2026-05-12', exit:'2026-05-22', type:'BUY', ep:185.60, xp:192.40, win:true }
+  ];
+  document.getElementById('trades-tbody').innerHTML = trades.map(t => {
+    const pnl = t.type === 'BUY' ? t.xp - t.ep : t.ep - t.xp;
+    const pct = (pnl / t.ep * 100).toFixed(2);
+    return `<tr>
+      <td>${t.id}</td><td>${t.entry}</td><td>${t.exit}</td>
+      <td><span style="font-weight:700;color:${t.type==='BUY'?'#4ade80':'#f87171'}">${t.type}</span></td>
+      <td>$${t.ep}</td><td>$${t.xp}</td>
+      <td class="${t.win?'trade-win':'trade-loss'}">${t.win?'+':''}$${(pnl*100).toFixed(0)}</td>
+      <td class="${t.win?'trade-win':'trade-loss'}">${t.win?'+':''}${pct}%</td>
+    </tr>`;
+  }).join('');
+
+  // Monthly returns
+  const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const returns = [4.2, 2.8, -1.4, 5.1, 3.7, 2.1, null,null,null,null,null,null];
+  document.getElementById('monthly-grid').innerHTML = months.map((m, i) => {
+    const r = returns[i];
+    const color = r === null ? '#64748b' : r >= 0 ? '#4ade80' : '#f87171';
+    return `<div class="month-cell"><div class="month-name">${m}</div><div class="month-val" style="color:${color}">${r===null?'—':(r>=0?'+':'')+''+r+'%'}</div></div>`;
+  }).join('');
+
+  // Model compare
+  const ctx = document.getElementById('model-compare-chart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['SVC','LSTM\nCls','GRU','XGB','ARIMA\nLSTM','SVR'],
+      datasets: [
+        { label: 'Retorno %', data: [18.4, 21.2, 19.8, 22.6, 24.7, 16.3], backgroundColor: '#1F3864', borderRadius: 4 },
+        { label: 'Win Rate %', data: [58.2, 61.4, 60.1, 63.8, 62.4, 54.7], backgroundColor: '#C5961A', borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#94a3b8', font: {size:11} } } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font:{size:10} }, grid: { color: '#334155' } },
+        y: { ticks: { color: '#94a3b8', font:{size:10} }, grid: { color: '#334155' } }
+      }
+    }
+  });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'console') { renderModelList('model-list-full', false); renderHyperparams(); renderSysStatus(); }
+  if (name === 'bt') renderBT();
+}
+
+renderModelList('model-list-mini', true);
+rebuildDashboard();
+</script>
+</body>
+</html>

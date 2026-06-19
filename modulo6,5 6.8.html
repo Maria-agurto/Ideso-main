@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InvestAI — Módulos 6.5 & 6.8 Conector Financiero</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #111; }
+
+    nav {
+      background: #1F3864; padding: 0 24px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; }
+    .nav-logo { width: 32px; height: 32px; background: #C5961A; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #fff; font-size: 14px; }
+    .nav-title { color: #fff; font-size: 16px; font-weight: 700; }
+    .nav-sub { color: #C5961A; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+    .tws-badge { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,.1); padding: 5px 12px; border-radius: 20px; }
+    .tws-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; animation: blink 1.5s infinite; }
+    @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+    .tws-badge span { color: #ccc; font-size: 12px; }
+
+    /* TABS */
+    .tab-bar {
+      background: #fff; border-bottom: 2px solid #e0e4ea;
+      display: flex; padding: 0 24px;
+    }
+    .tab {
+      padding: 14px 20px; font-size: 13px; font-weight: 600; color: #888;
+      cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;
+      transition: all .2s;
+    }
+    .tab.active { color: #1F3864; border-bottom-color: #C5961A; }
+    .tab:hover:not(.active) { color: #1F3864; }
+
+    .panel { display: none; padding: 20px 24px; }
+    .panel.active { display: block; }
+
+    /* ─── 6.5 NLP FEED ─── */
+    .nlp-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; }
+
+    .feed-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-title { font-size: 15px; font-weight: 800; color: #1F3864; }
+    .filter-group { display: flex; gap: 6px; }
+    .filter-btn {
+      padding: 5px 12px; border-radius: 20px; border: 1px solid #d0d5dd;
+      font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s;
+      color: #555; background: #fff;
+    }
+    .filter-btn.active { background: #1F3864; color: #fff; border-color: #1F3864; }
+    .filter-btn[data-f="BULLISH"].active { background: #16a34a; border-color: #16a34a; }
+    .filter-btn[data-f="BEARISH"].active { background: #dc2626; border-color: #dc2626; }
+    .filter-btn[data-f="NEUTRAL"].active { background: #6b7280; border-color: #6b7280; }
+
+    .news-feed { display: flex; flex-direction: column; gap: 10px; }
+    .news-card {
+      background: #fff; border-radius: 10px; padding: 14px 16px;
+      border-left: 4px solid #e0e4ea;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      transition: transform .15s, box-shadow .15s;
+      cursor: pointer;
+    }
+    .news-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+    .news-card.BULLISH { border-left-color: #16a34a; }
+    .news-card.BEARISH { border-left-color: #dc2626; }
+    .news-card.NEUTRAL  { border-left-color: #6b7280; }
+    .news-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+    .news-headline { font-size: 14px; font-weight: 700; color: #111; line-height: 1.35; flex: 1; }
+    .sentiment-badge {
+      padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;
+      white-space: nowrap; letter-spacing: 0.5px;
+    }
+    .badge-BULLISH { background: #dcfce7; color: #15803d; }
+    .badge-BEARISH { background: #fee2e2; color: #b91c1c; }
+    .badge-NEUTRAL  { background: #f3f4f6; color: #4b5563; }
+    .news-summary { font-size: 12px; color: #666; line-height: 1.4; margin-bottom: 8px; }
+    .news-meta { display: flex; justify-content: space-between; font-size: 11px; color: #999; }
+    .news-source { font-weight: 600; }
+    .score-bar { width: 100%; height: 3px; background: #f0f0f0; border-radius: 2px; margin-top: 6px; }
+    .score-fill { height: 100%; border-radius: 2px; transition: width .5s; }
+
+    /* Sentiment sidebar */
+    .sentiment-sidebar { display: flex; flex-direction: column; gap: 16px; }
+    .gauge-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); text-align: center; }
+    .gauge-title { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+    .gauge-wrap { position: relative; display: inline-block; }
+    .gauge-label { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; }
+    .gauge-sub { font-size: 12px; color: #888; margin-top: 4px; }
+    .dist-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    .dist-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .dist-row:last-child { margin-bottom: 0; }
+    .dist-lbl { font-size: 12px; font-weight: 700; width: 60px; }
+    .dist-bar-wrap { flex: 1; background: #f0f0f0; border-radius: 4px; height: 8px; overflow: hidden; }
+    .dist-bar-fill { height: 100%; border-radius: 4px; transition: width .6s; }
+    .dist-pct { font-size: 12px; font-weight: 700; width: 36px; text-align: right; }
+
+    /* ─── 6.8 ORDER FORM ─── */
+    .broker-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+
+    .paper-banner {
+      background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px;
+      padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px; font-size: 13px; font-weight: 600; color: #92400e;
+    }
+
+    .order-form { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    .form-title { font-size: 15px; font-weight: 800; color: #1F3864; margin-bottom: 16px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-label { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+    input, select {
+      border: 1px solid #d0d5dd; border-radius: 8px;
+      padding: 9px 12px; font-size: 14px; background: #fff;
+      transition: border-color .2s; width: 100%;
+    }
+    input:focus, select:focus { outline: none; border-color: #1F3864; box-shadow: 0 0 0 3px rgba(31,56,100,.08); }
+    .price-field { display: none; }
+    .price-field.show { display: flex; flex-direction: column; gap: 6px; }
+
+    .direction-group { display: flex; gap: 10px; margin-bottom: 14px; }
+    .dir-btn {
+      flex: 1; padding: 10px; border-radius: 8px; border: 2px solid #e0e4ea;
+      font-size: 14px; font-weight: 700; cursor: pointer; text-align: center;
+      transition: all .2s;
+    }
+    .dir-btn.buy.active { background: #dcfce7; border-color: #16a34a; color: #15803d; }
+    .dir-btn.sell.active { background: #fee2e2; border-color: #dc2626; color: #b91c1c; }
+    .dir-btn:not(.active) { color: #888; background: #f9f9f9; }
+
+    .submit-btn {
+      width: 100%; padding: 13px; border-radius: 8px; border: none;
+      font-size: 15px; font-weight: 700; cursor: pointer; transition: all .2s;
+    }
+    .submit-btn.buy { background: #16a34a; color: #fff; }
+    .submit-btn.buy:hover { background: #15803d; }
+    .submit-btn.sell { background: #dc2626; color: #fff; }
+    .submit-btn.sell:hover { background: #b91c1c; }
+
+    /* Summary card */
+    .summary-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    .sum-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
+    .sum-row:last-child { border-bottom: none; font-weight: 800; font-size: 14px; color: #1F3864; }
+    .sum-lbl { color: #666; }
+    .sum-val { font-weight: 600; }
+
+    /* Order history */
+    .order-history { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    .order-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .order-table th { background: #f8f9fa; padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+    .order-table td { padding: 9px 10px; border-bottom: 1px solid #f5f5f5; }
+    .status-pill { padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+    .status-FILLED { background: #dcfce7; color: #15803d; }
+    .status-PENDING { background: #fef9c3; color: #a16207; }
+    .status-CANCELLED { background: #fee2e2; color: #b91c1c; }
+    .dir-tag { font-weight: 700; }
+    .dir-BUY { color: #16a34a; }
+    .dir-SELL { color: #dc2626; }
+
+    /* MODAL */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.5); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 16px; padding: 28px;
+      width: 400px; max-width: 95vw;
+      animation: slideUp .25s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+    .modal-title { font-size: 18px; font-weight: 800; color: #1F3864; margin-bottom: 4px; }
+    .modal-dir { font-size: 28px; font-weight: 900; margin: 12px 0; text-align: center; }
+    .modal-dir.buy { color: #16a34a; }
+    .modal-dir.sell { color: #dc2626; }
+    .modal-rows { background: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+    .modal-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
+    .modal-row .ml { color: #666; }
+    .modal-row .mr { font-weight: 700; }
+    .swipe-btn {
+      width: 100%; background: #1F3864; color: #fff; border: none;
+      border-radius: 8px; padding: 14px; font-size: 15px; font-weight: 700;
+      cursor: pointer; position: relative; overflow: hidden;
+    }
+    .swipe-btn:hover { background: #16305a; }
+    .modal-cancel { width: 100%; margin-top: 8px; padding: 10px; background: transparent; border: none; color: #888; font-size: 13px; cursor: pointer; }
+
+    @media(max-width: 768px) {
+      .nlp-layout, .broker-layout { grid-template-columns: 1fr; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">AI</div>
+    <div>
+      <div class="nav-title">InvestAI — Conector Financiero</div>
+      <div class="nav-sub">Módulos 6.5 & 6.8</div>
+    </div>
+  </div>
+  <div class="tws-badge">
+    <div class="tws-dot"></div>
+    <span>TWS Conectado — Paper Trading</span>
+  </div>
+</nav>
+
+<div class="tab-bar">
+  <div class="tab active" onclick="showTab('nlp')">📰 6.5 — Feed NLP Noticias</div>
+  <div class="tab" onclick="showTab('broker')">📤 6.8 — Envío de Señales al Broker</div>
+</div>
+
+<!-- ─── TAB NLP ─── -->
+<div class="panel active" id="panel-nlp">
+  <div class="nlp-layout">
+    <div>
+      <div class="feed-header">
+        <div class="section-title">Análisis de Sentimiento — VADER NLP</div>
+        <div class="filter-group">
+          <button class="filter-btn active" data-f="ALL" onclick="filterNews('ALL',this)">Todos</button>
+          <button class="filter-btn" data-f="BULLISH" onclick="filterNews('BULLISH',this)">Bullish</button>
+          <button class="filter-btn" data-f="BEARISH" onclick="filterNews('BEARISH',this)">Bearish</button>
+          <button class="filter-btn" data-f="NEUTRAL" onclick="filterNews('NEUTRAL',this)">Neutral</button>
+        </div>
+      </div>
+      <div class="news-feed" id="news-feed"></div>
+    </div>
+    <div class="sentiment-sidebar">
+      <div class="gauge-card">
+        <div class="gauge-title">Sentimiento Agregado</div>
+        <div class="gauge-wrap">
+          <canvas id="gaugeChart" width="200" height="110"></canvas>
+          <div class="gauge-label" id="gauge-val" style="color:#C5961A">+0.52</div>
+        </div>
+        <div class="gauge-sub" id="gauge-lbl">Moderadamente Alcista</div>
+      </div>
+      <div class="dist-card">
+        <div class="gauge-title" style="margin-bottom:12px">Distribución de Sentimiento</div>
+        <div class="dist-row">
+          <span class="dist-lbl" style="color:#16a34a">Bullish</span>
+          <div class="dist-bar-wrap"><div class="dist-bar-fill" style="width:58%;background:#16a34a"></div></div>
+          <span class="dist-pct" style="color:#16a34a">58%</span>
+        </div>
+        <div class="dist-row">
+          <span class="dist-lbl" style="color:#dc2626">Bearish</span>
+          <div class="dist-bar-wrap"><div class="dist-bar-fill" style="width:22%;background:#dc2626"></div></div>
+          <span class="dist-pct" style="color:#dc2626">22%</span>
+        </div>
+        <div class="dist-row">
+          <span class="dist-lbl" style="color:#6b7280">Neutral</span>
+          <div class="dist-bar-wrap"><div class="dist-bar-fill" style="width:20%;background:#9ca3af"></div></div>
+          <span class="dist-pct" style="color:#6b7280">20%</span>
+        </div>
+        <div style="font-size:11px;color:#aaa;margin-top:10px;text-align:center">148 artículos analizados (últimas 24h)</div>
+      </div>
+      <div class="dist-card">
+        <div class="gauge-title" style="margin-bottom:10px">Activos más Mencionados</div>
+        <canvas id="assetChart" height="140"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── TAB BROKER ─── -->
+<div class="panel" id="panel-broker">
+  <div class="paper-banner">⚠️ Modo Paper Trading activo — Las órdenes son simuladas y no se ejecutarán en el mercado real.</div>
+  <div class="broker-layout">
+    <div>
+      <div class="order-form">
+        <div class="form-title">Nueva Orden de Trading — TWS API</div>
+        <div class="direction-group">
+          <div class="dir-btn buy active" onclick="setDirection('BUY')">▲ COMPRAR</div>
+          <div class="dir-btn sell" onclick="setDirection('SELL')">▼ VENDER</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <span class="form-label">Ticker / Activo</span>
+            <input type="text" id="f-ticker" value="AAPL" oninput="updateSummary()" />
+          </div>
+          <div class="form-group">
+            <span class="form-label">Tipo de Orden</span>
+            <select id="f-type" onchange="onTypeChange()">
+              <option value="Market">Market</option>
+              <option value="Limit">Limit</option>
+              <option value="Stop">Stop</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <span class="form-label">Cantidad (acciones)</span>
+            <input type="number" id="f-qty" value="10" min="1" oninput="updateSummary()" />
+          </div>
+          <div class="form-group price-field" id="price-field">
+            <span class="form-label" id="price-lbl">Precio Límite (USD)</span>
+            <input type="number" id="f-price" value="188.50" step="0.01" oninput="updateSummary()" />
+          </div>
+        </div>
+        <button class="submit-btn buy" id="submit-btn" onclick="openModal()">▲ ENVIAR ORDEN AL BROKER</button>
+      </div>
+
+      <div class="order-history" style="margin-top:16px">
+        <div class="section-title" style="margin-bottom:12px">Historial de Órdenes</div>
+        <table class="order-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Hora</th><th>Ticker</th><th>Dir.</th>
+              <th>Qty</th><th>Tipo</th><th>Precio</th><th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="order-tbody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="summary-card" style="height:fit-content">
+      <div class="form-title" style="margin-bottom:14px">Resumen de la Transacción</div>
+      <div class="sum-row"><span class="sum-lbl">Activo</span><span class="sum-val" id="s-ticker">AAPL</span></div>
+      <div class="sum-row"><span class="sum-lbl">Dirección</span><span class="sum-val" style="color:#16a34a" id="s-dir">COMPRA</span></div>
+      <div class="sum-row"><span class="sum-lbl">Cantidad</span><span class="sum-val" id="s-qty">10 acc.</span></div>
+      <div class="sum-row"><span class="sum-lbl">Tipo</span><span class="sum-val" id="s-type">Market</span></div>
+      <div class="sum-row"><span class="sum-lbl">Precio ref.</span><span class="sum-val" id="s-price">$189.47</span></div>
+      <div class="sum-row"><span class="sum-lbl">Subtotal</span><span class="sum-val" id="s-subtotal">$1,894.70</span></div>
+      <div class="sum-row"><span class="sum-lbl">Comisión IB</span><span class="sum-val" id="s-comm">$1.00</span></div>
+      <div class="sum-row"><span class="sum-lbl">Impacto Portafolio</span><span class="sum-val" id="s-impact">−2.1%</span></div>
+      <div class="sum-row"><span class="sum-lbl">TOTAL ESTIMADO</span><span class="sum-val" id="s-total">$1,895.70</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-title">Confirmar Orden</div>
+    <div class="modal-dir buy" id="modal-dir">▲ COMPRA DE ACCIONES</div>
+    <div class="modal-rows">
+      <div class="modal-row"><span class="ml">Activo</span><span class="mr" id="m-ticker">AAPL</span></div>
+      <div class="modal-row"><span class="ml">Cantidad</span><span class="mr" id="m-qty">10 acc.</span></div>
+      <div class="modal-row"><span class="ml">Precio Límite</span><span class="mr" id="m-price">$188.50</span></div>
+      <div class="modal-row"><span class="ml">Total Estimado</span><span class="mr" id="m-total">$1,895.70</span></div>
+    </div>
+    <button class="swipe-btn" onclick="confirmOrder()">✓ Confirmar y Enviar al Broker</button>
+    <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
+  </div>
+</div>
+
+<script>
+// ─── NLP NEWS DATA ────────────────────────────────────────────────────────────
+const NEWS = [
+  { headline: 'Apple supera expectativas de ingresos en Q2 2026 con sólida demanda del iPhone 17', source: 'Bloomberg', time: 'hace 12 min', sentiment: 'BULLISH', score: 0.87, ticker: 'AAPL', summary: 'Apple reportó ingresos de $94.8B, superando el consenso de analistas en un 4.2%. Las ventas de servicios crecieron un 18% interanual.' },
+  { headline: 'Reserva Federal señala posibles recortes de tasas para Q3 2026 ante enfriamiento inflacionario', source: 'Reuters', time: 'hace 28 min', sentiment: 'BULLISH', score: 0.74, ticker: 'MACRO', summary: 'Jerome Powell indicó que el escenario base contempla dos recortes de 25bps en la segunda mitad del año.' },
+  { headline: 'NVIDIA enfrenta escrutinio regulatorio por dominancia en chips de IA en mercados europeos', source: 'FT', time: 'hace 45 min', sentiment: 'BEARISH', score: -0.62, ticker: 'NVDA', summary: 'La Comisión Europea inició una investigación formal sobre posibles prácticas anticompetitivas en el mercado de GPUs para centros de datos.' },
+  { headline: 'Bitcoin consolida por encima de $67K mientras instituciones acumulan posiciones', source: 'CoinDesk', time: 'hace 1h', sentiment: 'BULLISH', score: 0.68, ticker: 'BTC', summary: 'Los flujos netos hacia ETFs de Bitcoin spot superaron los $420M en la sesión del jueves, señalando demanda institucional sostenida.' },
+  { headline: 'Microsoft Azure reporta crecimiento del 31% impulsado por contratos de IA corporativa', source: 'WSJ', time: 'hace 1h 20min', sentiment: 'BULLISH', score: 0.81, ticker: 'MSFT', summary: 'La división de nube de Microsoft continúa ganando cuota de mercado frente a AWS, especialmente en implementaciones de modelos de lenguaje.' },
+  { headline: 'Alphabet advierte sobre presión en márgenes publicitarios ante avance de la búsqueda por IA', source: 'Bloomberg', time: 'hace 2h', sentiment: 'BEARISH', score: -0.55, ticker: 'GOOGL', summary: 'Ejecutivos de Alphabet reconocieron que la transición hacia resultados generados por IA podría reducir el número de clics en anuncios.' },
+  { headline: 'Índice S&P 500 cierra con mínimos cambios en sesión de bajo volumen previo a datos de empleo', source: 'MarketWatch', time: 'hace 2h 30min', sentiment: 'NEUTRAL', score: 0.08, ticker: 'SPX', summary: 'Los mercados mantuvieron un comportamiento lateral mientras los inversores esperan el reporte de nóminas no agrícolas del viernes.' },
+  { headline: 'Datos de inflación PCE de mayo confirman desaceleración sostenida en EEUU', source: 'Reuters', time: 'hace 3h', sentiment: 'BULLISH', score: 0.71, ticker: 'MACRO', summary: 'El índice PCE subió 2.6% interanual en mayo, por debajo del 2.7% esperado, reforzando el escenario de recorte de tasas.' },
+  { headline: 'Tesla enfrenta nueva demanda colectiva por fallas en sistema Autopilot en condiciones de lluvia', source: 'The Verge', time: 'hace 3h 45min', sentiment: 'BEARISH', score: -0.79, ticker: 'TSLA', summary: 'Un grupo de propietarios presentó una demanda alegando que el fabricante sobrestimó las capacidades del sistema de asistencia al conductor.' },
+  { headline: 'Goldman Sachs mantiene rating "Compra" en AAPL con precio objetivo de $215', source: 'Seeking Alpha', time: 'hace 4h', sentiment: 'BULLISH', score: 0.65, ticker: 'AAPL', summary: 'El banco de inversión elevó sus estimaciones de EPS para el ejercicio fiscal 2026 ante el potencial del ciclo de actualización de iPhone.' }
+];
+
+let activeFilter = 'ALL';
+
+function renderNews(filter) {
+  const feed = document.getElementById('news-feed');
+  const items = filter === 'ALL' ? NEWS : NEWS.filter(n => n.sentiment === filter);
+  feed.innerHTML = items.map(n => {
+    const scoreColor = n.sentiment === 'BULLISH' ? '#16a34a' : n.sentiment === 'BEARISH' ? '#dc2626' : '#6b7280';
+    const fillPct = Math.abs(n.score) * 100;
+    return `
+      <div class="news-card ${n.sentiment}">
+        <div class="news-top">
+          <div class="news-headline">${n.headline}</div>
+          <span class="sentiment-badge badge-${n.sentiment}">${n.sentiment}</span>
+        </div>
+        <div class="news-summary">${n.summary}</div>
+        <div class="news-meta">
+          <span class="news-source">${n.source}</span>
+          <span>${n.ticker} · ${n.time}</span>
+        </div>
+        <div class="score-bar"><div class="score-fill" style="width:${fillPct}%;background:${scoreColor}"></div></div>
+      </div>`;
+  }).join('');
+}
+
+function filterNews(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderNews(f);
+}
+
+// Gauge (semicircle)
+function drawGauge() {
+  const ctx = document.getElementById('gaugeChart').getContext('2d');
+  const val = 0.52; // -1 to 1
+  const angle = (val + 1) / 2; // 0-1
+  const startAngle = Math.PI;
+  const endAngle = startAngle + angle * Math.PI;
+  const cx = 100, cy = 100, r = 75;
+
+  ctx.clearRect(0, 0, 200, 110);
+  // Background arc
+  ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 2 * Math.PI);
+  ctx.lineWidth = 14; ctx.strokeStyle = '#f0f0f0'; ctx.stroke();
+  // Gradient arc
+  const grad = ctx.createLinearGradient(25, cy, 175, cy);
+  grad.addColorStop(0, '#dc2626'); grad.addColorStop(0.5, '#f59e0b'); grad.addColorStop(1, '#16a34a');
+  ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, endAngle);
+  ctx.strokeStyle = '#C5961A'; ctx.lineWidth = 14; ctx.lineCap = 'round'; ctx.stroke();
+  // Needle
+  const needleAngle = Math.PI + angle * Math.PI;
+  const nx = cx + (r - 20) * Math.cos(needleAngle), ny = cy + (r - 20) * Math.sin(needleAngle);
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(nx, ny);
+  ctx.strokeStyle = '#1F3864'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
+  ctx.fillStyle = '#1F3864'; ctx.fill();
+}
+
+// Asset chart
+function drawAssetChart() {
+  const ctx = document.getElementById('assetChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['AAPL','MSFT','NVDA','BTC','GOOGL'],
+      datasets: [{
+        data: [32, 24, 18, 15, 11],
+        backgroundColor: ['#1F3864','#C5961A','#16a34a','#f59e0b','#6b7280'],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+        y: { display: false }
+      }
+    }
+  });
+}
+
+renderNews('ALL');
+setTimeout(() => { drawGauge(); drawAssetChart(); }, 100);
+
+// ─── BROKER / ORDER FORM ────────────────────────────────────────────────────
+let direction = 'BUY';
+const MARKET_PRICES = { AAPL: 189.47, MSFT: 412.30, GOOGL: 176.15, NVDA: 875.60, BTC: 67240 };
+
+const ORDERS = [
+  { id: 'ORD-001', time: '09:32', ticker: 'AAPL', dir: 'BUY', qty: 15, type: 'Market', price: '$189.22', status: 'FILLED' },
+  { id: 'ORD-002', time: '10:14', ticker: 'NVDA', dir: 'SELL', qty: 5, type: 'Limit', price: '$880.00', status: 'PENDING' },
+  { id: 'ORD-003', time: '11:05', ticker: 'BTC', dir: 'BUY', qty: 1, type: 'Market', price: '$67,100', status: 'FILLED' },
+  { id: 'ORD-004', time: '12:30', ticker: 'MSFT', dir: 'SELL', qty: 8, type: 'Stop', price: '$408.00', status: 'CANCELLED' }
+];
+
+function renderOrders() {
+  const tbody = document.getElementById('order-tbody');
+  tbody.innerHTML = ORDERS.map(o => `
+    <tr>
+      <td>${o.id}</td><td>${o.time}</td><td><strong>${o.ticker}</strong></td>
+      <td><span class="dir-tag dir-${o.dir}">${o.dir}</span></td>
+      <td>${o.qty}</td><td>${o.type}</td><td>${o.price}</td>
+      <td><span class="status-pill status-${o.status}">${o.status}</span></td>
+    </tr>`).join('');
+}
+renderOrders();
+
+function setDirection(dir) {
+  direction = dir;
+  document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.dir-btn.${dir.toLowerCase()}`).classList.add('active');
+  const btn = document.getElementById('submit-btn');
+  btn.className = `submit-btn ${dir.toLowerCase()}`;
+  btn.textContent = dir === 'BUY' ? '▲ ENVIAR ORDEN AL BROKER' : '▼ ENVIAR ORDEN AL BROKER';
+  updateSummary();
+}
+
+function onTypeChange() {
+  const t = document.getElementById('f-type').value;
+  const pf = document.getElementById('price-field');
+  const lbl = document.getElementById('price-lbl');
+  if (t === 'Market') { pf.classList.remove('show'); }
+  else { pf.classList.add('show'); lbl.textContent = t === 'Limit' ? 'Precio Límite (USD)' : 'Precio Stop (USD)'; }
+  updateSummary();
+}
+
+function updateSummary() {
+  const ticker = document.getElementById('f-ticker').value.toUpperCase();
+  const qty = parseFloat(document.getElementById('f-qty').value) || 0;
+  const type = document.getElementById('f-type').value;
+  const refPrice = MARKET_PRICES[ticker] || 100;
+  const limitPrice = type !== 'Market' ? (parseFloat(document.getElementById('f-price').value) || refPrice) : refPrice;
+  const subtotal = qty * limitPrice;
+  const comm = Math.max(1, qty * 0.005);
+  const total = subtotal + comm;
+  const portfolioVal = 90000;
+  const impact = (subtotal / portfolioVal * 100).toFixed(1);
+
+  document.getElementById('s-ticker').textContent = ticker;
+  document.getElementById('s-dir').textContent = direction === 'BUY' ? 'COMPRA' : 'VENTA';
+  document.getElementById('s-dir').style.color = direction === 'BUY' ? '#16a34a' : '#dc2626';
+  document.getElementById('s-qty').textContent = qty + ' acc.';
+  document.getElementById('s-type').textContent = type;
+  document.getElementById('s-price').textContent = '$' + refPrice.toLocaleString();
+  document.getElementById('s-subtotal').textContent = '$' + subtotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  document.getElementById('s-comm').textContent = '$' + comm.toFixed(2);
+  document.getElementById('s-impact').textContent = (direction === 'BUY' ? '−' : '+') + impact + '%';
+  document.getElementById('s-total').textContent = '$' + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+updateSummary();
+
+function openModal() {
+  const ticker = document.getElementById('f-ticker').value.toUpperCase();
+  const qty = document.getElementById('f-qty').value;
+  const total = document.getElementById('s-total').textContent;
+  const type = document.getElementById('f-type').value;
+  const price = type !== 'Market' ? document.getElementById('f-price').value : 'Mercado';
+  document.getElementById('m-ticker').textContent = ticker;
+  document.getElementById('m-qty').textContent = qty + ' acciones';
+  document.getElementById('m-price').textContent = type !== 'Market' ? '$' + price : 'Precio Mercado';
+  document.getElementById('m-total').textContent = total;
+  const dirEl = document.getElementById('modal-dir');
+  dirEl.textContent = direction === 'BUY' ? '▲ COMPRA DE ACCIONES' : '▼ VENTA DE ACCIONES';
+  dirEl.className = 'modal-dir ' + direction.toLowerCase();
+  document.getElementById('modal').classList.add('show');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+function confirmOrder() {
+  const ticker = document.getElementById('f-ticker').value.toUpperCase();
+  const qty = document.getElementById('f-qty').value;
+  const type = document.getElementById('f-type').value;
+  const now = new Date(); const timeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+  const newId = 'ORD-' + String(ORDERS.length + 1).padStart(3,'0');
+  const refPrice = MARKET_PRICES[ticker] || 100;
+  ORDERS.unshift({ id: newId, time: timeStr, ticker, dir: direction, qty: +qty, type, price: '$' + refPrice.toLocaleString(), status: 'PENDING' });
+  setTimeout(() => { ORDERS[0].status = 'FILLED'; renderOrders(); }, 1500);
+  renderOrders();
+  closeModal();
+}
+
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

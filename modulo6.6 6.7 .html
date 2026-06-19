@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InvestAI — Módulos 6.6 & 6.7 Analista de Portafolios</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #111; }
+
+    nav { background: #1F3864; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { display: flex; align-items: center; gap: 10px; }
+    .nav-logo { width: 32px; height: 32px; background: #C5961A; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #fff; font-size: 14px; }
+    .nav-title { color: #fff; font-size: 16px; font-weight: 700; }
+    .nav-sub { color: #C5961A; font-size: 11px; font-weight: 600; letter-spacing: 1px; }
+    .nav-right { color: #aaa; font-size: 12px; }
+
+    .tab-bar { background: #fff; border-bottom: 2px solid #e0e4ea; display: flex; padding: 0 24px; }
+    .tab { padding: 14px 20px; font-size: 13px; font-weight: 600; color: #888; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .2s; }
+    .tab.active { color: #1F3864; border-bottom-color: #C5961A; }
+    .tab:hover:not(.active) { color: #1F3864; }
+    .panel { display: none; padding: 20px 24px; }
+    .panel.active { display: block; }
+
+    .section-title { font-size: 15px; font-weight: 800; color: #1F3864; margin-bottom: 16px; }
+
+    /* ─── 6.6 STRATEGIES ─── */
+    .strategy-layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+
+    .strategy-panel { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    .strat-label { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+    .strat-select-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .strat-option {
+      padding: 10px 12px; border-radius: 8px; border: 2px solid #e0e4ea;
+      cursor: pointer; font-size: 13px; font-weight: 600; color: #555; transition: all .2s;
+    }
+    .strat-option.selected { border-color: #C5961A; background: #fefce8; color: #1F3864; }
+    .strat-option:hover:not(.selected) { border-color: #1F3864; }
+
+    .param-group { margin-bottom: 14px; }
+    .param-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; }
+    .param-name { color: #555; }
+    .param-val { font-weight: 700; color: #1F3864; }
+    input[type=range] {
+      width: 100%; accent-color: #C5961A; margin-top: 4px;
+      cursor: pointer; height: 4px;
+    }
+
+    .payoff-card { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    .metrics-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px; }
+    .metric-box { background: #F5F7FA; border-radius: 8px; padding: 12px; text-align: center; }
+    .metric-lbl { font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .metric-val { font-size: 16px; font-weight: 800; }
+    .metric-val.positive { color: #16a34a; }
+    .metric-val.negative { color: #dc2626; }
+    .metric-val.neutral { color: #C5961A; }
+
+    /* ─── 6.7 PORTFOLIO ─── */
+    .portfolio-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .portfolio-layout-3 { display: grid; grid-template-columns: 280px 1fr; gap: 20px; margin-top: 20px; }
+
+    .card { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+
+    .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+    .kpi { background: #fff; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); border-left: 4px solid #1F3864; }
+    .kpi:nth-child(2) { border-left-color: #C5961A; }
+    .kpi:nth-child(3) { border-left-color: #16a34a; }
+    .kpi:nth-child(4) { border-left-color: #9B59B6; }
+    .kpi-lbl { font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-val { font-size: 22px; font-weight: 800; color: #1F3864; margin: 4px 0; }
+    .kpi-sub { font-size: 11px; font-weight: 600; }
+
+    .rebalance-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .rebalance-table th { background: #F5F7FA; padding: 8px 12px; text-align: left; font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+    .rebalance-table td { padding: 10px 12px; border-bottom: 1px solid #f5f5f5; }
+    .reb-symbol { font-weight: 700; color: #1F3864; }
+    .deviation-bar-wrap { width: 100%; background: #f0f0f0; border-radius: 4px; height: 6px; }
+    .deviation-bar { height: 100%; border-radius: 4px; }
+    .action-tag { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+    .action-BUY { background: #dcfce7; color: #15803d; }
+    .action-SELL { background: #fee2e2; color: #b91c1c; }
+    .action-HOLD { background: #f3f4f6; color: #6b7280; }
+
+    .ratios-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .ratio-item { padding: 10px 12px; background: #F5F7FA; border-radius: 8px; }
+    .ratio-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .ratio-name { font-size: 12px; font-weight: 700; color: #1F3864; }
+    .ratio-val { font-size: 15px; font-weight: 800; }
+    .ratio-desc { font-size: 11px; color: #888; }
+
+    @media(max-width:900px) {
+      .strategy-layout, .portfolio-layout, .portfolio-layout-3 { grid-template-columns: 1fr; }
+      .kpi-row { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">AI</div>
+    <div>
+      <div class="nav-title">InvestAI — Analista de Portafolios</div>
+      <div class="nav-sub">Módulos 6.6 & 6.7</div>
+    </div>
+  </div>
+  <div class="nav-right">Portafolio activo: Conservative Growth · $92,450.00</div>
+</nav>
+
+<div class="tab-bar">
+  <div class="tab active" onclick="showTab('strategies')">📊 6.6 — Estrategias & Payoff</div>
+  <div class="tab" onclick="showTab('portfolio')">🥧 6.7 — Gestión de Portafolio</div>
+</div>
+
+<!-- ─── 6.6 STRATEGIES ─── -->
+<div class="panel active" id="panel-strategies">
+  <div class="strategy-layout">
+    <!-- Left: controls -->
+    <div class="strategy-panel">
+      <div class="section-title">Configurar Estrategia</div>
+      <span class="strat-label">Tipo de Estrategia</span>
+      <div class="strat-select-list">
+        <div class="strat-option selected" onclick="selectStrat('covered-call',this)">📈 Covered Call</div>
+        <div class="strat-option" onclick="selectStrat('protective-put',this)">🛡️ Protective Put</div>
+        <div class="strat-option" onclick="selectStrat('bull-spread',this)">↗️ Bull Call Spread</div>
+        <div class="strat-option" onclick="selectStrat('straddle',this)">🔀 Long Straddle</div>
+        <div class="strat-option" onclick="selectStrat('iron-condor',this)">🦅 Iron Condor</div>
+      </div>
+
+      <div class="param-group">
+        <span class="strat-label">Precio del Activo Subyacente</span>
+        <div class="param-row"><span class="param-name">Spot Price</span><span class="param-val" id="v-spot">$189.47</span></div>
+        <input type="range" min="150" max="230" value="189" id="sl-spot" oninput="updatePayoff()">
+      </div>
+      <div class="param-group">
+        <span class="strat-label">Precio de Ejercicio (Strike)</span>
+        <div class="param-row"><span class="param-name">Strike Price</span><span class="param-val" id="v-strike">$190.00</span></div>
+        <input type="range" min="150" max="230" value="190" id="sl-strike" oninput="updatePayoff()">
+      </div>
+      <div class="param-group">
+        <span class="strat-label">Prima de la Opción</span>
+        <div class="param-row"><span class="param-name">Premium</span><span class="param-val" id="v-premium">$4.50</span></div>
+        <input type="range" min="1" max="20" value="4" step="0.5" id="sl-premium" oninput="updatePayoff()">
+      </div>
+      <div class="param-group">
+        <span class="strat-label">Número de Contratos (×100 acc.)</span>
+        <div class="param-row"><span class="param-name">Contratos</span><span class="param-val" id="v-contracts">1</span></div>
+        <input type="range" min="1" max="10" value="1" id="sl-contracts" oninput="updatePayoff()">
+      </div>
+    </div>
+
+    <!-- Right: payoff chart + metrics -->
+    <div>
+      <div class="payoff-card">
+        <div id="strat-name" style="font-size:14px;font-weight:800;color:#1F3864;margin-bottom:12px">📈 Covered Call — AAPL</div>
+        <div class="metrics-row">
+          <div class="metric-box"><div class="metric-lbl">Pérdida Máx.</div><div class="metric-val negative" id="m-loss">−$18,497</div></div>
+          <div class="metric-box"><div class="metric-lbl">Ganancia Máx.</div><div class="metric-val positive" id="m-gain">+$950</div></div>
+          <div class="metric-box"><div class="metric-lbl">Punto de Equilibrio</div><div class="metric-val neutral" id="m-breakeven">$184.97</div></div>
+        </div>
+        <div id="payoff-chart"></div>
+        <div style="font-size:11px;color:#888;margin-top:8px;text-align:center">Gráfico de Payoff al Vencimiento — Los resultados son simulados con fines educativos.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 6.7 PORTFOLIO ─── -->
+<div class="panel" id="panel-portfolio">
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-lbl">Valor del Portafolio</div>
+      <div class="kpi-val">$92,450</div>
+      <div class="kpi-sub" style="color:#16a34a">▲ +$1,850 hoy (+2.04%)</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Rendimiento YTD</div>
+      <div class="kpi-val" style="color:#C5961A">+18.4%</div>
+      <div class="kpi-sub" style="color:#888">vs S&P 500: +11.2%</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Sharpe Ratio</div>
+      <div class="kpi-val" style="color:#16a34a">1.82</div>
+      <div class="kpi-sub" style="color:#888">Ajustado al riesgo</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Max Drawdown</div>
+      <div class="kpi-val" style="color:#dc2626">−7.3%</div>
+      <div class="kpi-sub" style="color:#888">Desde máximos</div>
+    </div>
+  </div>
+
+  <div class="portfolio-layout">
+    <!-- Donut -->
+    <div class="card">
+      <div class="section-title">Distribución de Activos</div>
+      <canvas id="donutChart" height="220"></canvas>
+    </div>
+    <!-- Equity curve -->
+    <div class="card">
+      <div class="section-title">Curva de Equity vs. S&P 500</div>
+      <canvas id="equityChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="portfolio-layout-3" style="margin-top:20px">
+    <!-- Ratios -->
+    <div class="card">
+      <div class="section-title">Ratios de Rendimiento</div>
+      <div class="ratios-grid">
+        <div class="ratio-item">
+          <div class="ratio-row"><span class="ratio-name">Sharpe Ratio</span><span class="ratio-val" style="color:#16a34a">1.82</span></div>
+          <div class="ratio-desc">Rendimiento por unidad de riesgo total. Benchmark: > 1.0</div>
+        </div>
+        <div class="ratio-item">
+          <div class="ratio-row"><span class="ratio-name">Sortino Ratio</span><span class="ratio-val" style="color:#16a34a">2.14</span></div>
+          <div class="ratio-desc">Rendimiento ajustado sólo por riesgo a la baja. Benchmark: > 1.5</div>
+        </div>
+        <div class="ratio-item">
+          <div class="ratio-row"><span class="ratio-name">Calmar Ratio</span><span class="ratio-val" style="color:#C5961A">2.52</span></div>
+          <div class="ratio-desc">Retorno anualizado / Max Drawdown. Benchmark: > 2.0</div>
+        </div>
+        <div class="ratio-item">
+          <div class="ratio-row"><span class="ratio-name">Beta (vs S&P500)</span><span class="ratio-val" style="color:#1F3864">0.78</span></div>
+          <div class="ratio-desc">Sensibilidad relativa al mercado. Portafolio defensivo.</div>
+        </div>
+        <div class="ratio-item">
+          <div class="ratio-row"><span class="ratio-name">Alpha Anualizado</span><span class="ratio-val" style="color:#16a34a">+7.2%</span></div>
+          <div class="ratio-desc">Retorno en exceso ajustado por beta respecto al benchmark.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rebalance table -->
+    <div class="card">
+      <div class="section-title">Sugerencia de Rebalanceo</div>
+      <table class="rebalance-table">
+        <thead>
+          <tr>
+            <th>Activo</th><th>Peso Actual</th><th>Peso Óptimo</th>
+            <th>Desviación</th><th>Acción</th><th>Ajuste (USD)</th>
+          </tr>
+        </thead>
+        <tbody id="reb-tbody"></tbody>
+      </table>
+      <div style="margin-top:12px;display:flex;gap:10px;justify-content:flex-end">
+        <button onclick="alert('Rebalanceo simulado aplicado.')" style="padding:8px 16px;background:#1F3864;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
+          Aplicar Rebalanceo
+        </button>
+        <button onclick="alert('Informe exportado.')" style="padding:8px 16px;background:#fff;color:#1F3864;border:2px solid #1F3864;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
+          Exportar CSV
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── 6.6 PAYOFF ──────────────────────────────────────────────────────────────
+const STRATEGIES = {
+  'covered-call': {
+    name: '📈 Covered Call',
+    calc: (prices, spot, strike, premium, contracts) => prices.map(p => {
+      const stockPL = (p - spot) * 100 * contracts;
+      const optionPL = Math.min(p, strike) <= p ? (p <= strike ? premium * 100 * contracts : (premium - (p - strike)) * 100 * contracts) : 0;
+      return ((p > strike ? (strike - spot + premium) : (p - spot + premium)) * 100 * contracts);
+    }),
+    maxGain: (spot, strike, premium, contracts) => (strike - spot + premium) * 100 * contracts,
+    maxLoss: (spot, strike, premium, contracts) => -(spot - premium) * 100 * contracts,
+    breakeven: (spot, strike, premium) => spot - premium
+  },
+  'protective-put': {
+    name: '🛡️ Protective Put',
+    calc: (prices, spot, strike, premium, contracts) => prices.map(p =>
+      (Math.max(p, strike) - spot - premium) * 100 * contracts),
+    maxGain: (spot, strike, premium, contracts) => Infinity,
+    maxLoss: (spot, strike, premium, contracts) => -(spot - strike + premium) * 100 * contracts,
+    breakeven: (spot, strike, premium) => spot + premium
+  },
+  'bull-spread': {
+    name: '↗️ Bull Call Spread',
+    calc: (prices, spot, strike, premium, contracts) => {
+      const strike2 = strike + 10;
+      return prices.map(p => {
+        if (p <= strike) return -premium * 100 * contracts;
+        if (p >= strike2) return (strike2 - strike - premium) * 100 * contracts;
+        return (p - strike - premium) * 100 * contracts;
+      });
+    },
+    maxGain: (spot, strike, premium, contracts) => (10 - premium) * 100 * contracts,
+    maxLoss: (spot, strike, premium, contracts) => -premium * 100 * contracts,
+    breakeven: (spot, strike, premium) => strike + premium
+  },
+  'straddle': {
+    name: '🔀 Long Straddle',
+    calc: (prices, spot, strike, premium, contracts) => prices.map(p =>
+      (Math.abs(p - strike) - 2 * premium) * 100 * contracts),
+    maxGain: (spot, strike, premium, contracts) => Infinity,
+    maxLoss: (spot, strike, premium, contracts) => -2 * premium * 100 * contracts,
+    breakeven: (spot, strike, premium) => strike - 2 * premium
+  },
+  'iron-condor': {
+    name: '🦅 Iron Condor',
+    calc: (prices, spot, strike, premium, contracts) => {
+      const lp = strike - 10, lc = strike, uc = strike + 10, up = strike + 20;
+      const net = premium;
+      return prices.map(p => {
+        if (p <= lp || p >= up) return -(10 - net) * 100 * contracts;
+        if (p >= lc && p <= uc) return net * 100 * contracts;
+        if (p > lp && p < lc) return (net - (lc - p)) * 100 * contracts;
+        return (net - (p - uc)) * 100 * contracts;
+      });
+    },
+    maxGain: (spot, strike, premium, contracts) => premium * 100 * contracts,
+    maxLoss: (spot, strike, premium, contracts) => -(10 - premium) * 100 * contracts,
+    breakeven: (spot, strike, premium) => strike - premium
+  }
+};
+
+let currentStrat = 'covered-call';
+let payoffChart = null;
+
+function selectStrat(id, el) {
+  currentStrat = id;
+  document.querySelectorAll('.strat-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  updatePayoff();
+}
+
+function updatePayoff() {
+  const spot = parseFloat(document.getElementById('sl-spot').value);
+  const strike = parseFloat(document.getElementById('sl-strike').value);
+  const premium = parseFloat(document.getElementById('sl-premium').value);
+  const contracts = parseInt(document.getElementById('sl-contracts').value);
+
+  document.getElementById('v-spot').textContent = '$' + spot.toFixed(2);
+  document.getElementById('v-strike').textContent = '$' + strike.toFixed(2);
+  document.getElementById('v-premium').textContent = '$' + premium.toFixed(2);
+  document.getElementById('v-contracts').textContent = contracts;
+
+  const strat = STRATEGIES[currentStrat];
+  const prices = [];
+  for (let p = spot * 0.7; p <= spot * 1.3; p += spot * 0.005) prices.push(+p.toFixed(2));
+  const pnl = strat.calc(prices, spot, strike, premium, contracts);
+
+  const maxGain = strat.maxGain(spot, strike, premium, contracts);
+  const maxLoss = strat.maxLoss(spot, strike, premium, contracts);
+  const be = strat.breakeven(spot, strike, premium);
+
+  document.getElementById('strat-name').textContent = strat.name + ' — AAPL';
+  document.getElementById('m-gain').textContent = maxGain === Infinity ? 'Ilimitada' : (maxGain >= 0 ? '+' : '') + '$' + maxGain.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+  document.getElementById('m-loss').textContent = (maxLoss >= 0 ? '+' : '') + '$' + maxLoss.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+  document.getElementById('m-breakeven').textContent = '$' + be.toFixed(2);
+
+  const colors = pnl.map(v => v >= 0 ? 'rgba(22,163,74,0.8)' : 'rgba(220,38,38,0.8)');
+
+  const gainTrace = { x: prices, y: pnl.map(v => v >= 0 ? v : null), fill: 'tozeroy', fillcolor: 'rgba(22,163,74,0.15)', type: 'scatter', mode: 'none', showlegend: false };
+  const lossTrace = { x: prices, y: pnl.map(v => v < 0 ? v : null), fill: 'tozeroy', fillcolor: 'rgba(220,38,38,0.15)', type: 'scatter', mode: 'none', showlegend: false };
+  const lineTrace = {
+    x: prices, y: pnl, type: 'scatter', mode: 'lines', name: 'P&L',
+    line: { color: '#1F3864', width: 2.5 },
+    hovertemplate: 'Precio: $%{x:.2f}<br>P&L: $%{y:,.0f}<extra></extra>'
+  };
+  const beTrace = {
+    x: [be, be], y: [Math.min(...pnl) * 1.1, Math.max(...pnl) * 1.1],
+    type: 'scatter', mode: 'lines', name: 'Break-even',
+    line: { color: '#C5961A', width: 1.5, dash: 'dash' }
+  };
+  const spotTrace = {
+    x: [spot, spot], y: [Math.min(...pnl) * 1.1, Math.max(...pnl) * 1.1],
+    type: 'scatter', mode: 'lines', name: 'Precio Spot',
+    line: { color: '#9B59B6', width: 1.5, dash: 'dot' }
+  };
+
+  const layout = {
+    paper_bgcolor: '#fff', plot_bgcolor: '#fff', height: 340,
+    margin: { l: 65, r: 20, t: 20, b: 40 },
+    xaxis: { title: 'Precio del Activo al Vencimiento ($)', tickprefix: '$', gridcolor: '#f0f0f0', showgrid: true },
+    yaxis: { title: 'Ganancia / Pérdida (USD)', tickprefix: '$', gridcolor: '#f0f0f0', showgrid: true, zeroline: true, zerolinecolor: '#ccc' },
+    legend: { orientation: 'h', y: 1.1 },
+    hovermode: 'x unified',
+    shapes: [{ type: 'line', x0: Math.min(...prices), x1: Math.max(...prices), y0: 0, y1: 0, line: { color: '#ccc', width: 1 } }]
+  };
+  Plotly.newPlot('payoff-chart', [gainTrace, lossTrace, lineTrace, beTrace, spotTrace], layout, { responsive: true, displayModeBar: false });
+}
+updatePayoff();
+
+// ─── 6.7 PORTFOLIO ──────────────────────────────────────────────────────────
+const PORTFOLIO = [
+  { symbol: 'AAPL', name: 'Apple Inc.', current: 38, optimal: 35, value: 35131, color: '#1F3864' },
+  { symbol: 'MSFT', name: 'Microsoft', current: 26, optimal: 28, value: 24037, color: '#C5961A' },
+  { symbol: 'NVDA', name: 'NVIDIA', current: 18, optimal: 20, value: 16641, color: '#16a34a' },
+  { symbol: 'BTC-USD', name: 'Bitcoin', current: 12, optimal: 10, value: 11094, color: '#f59e0b' },
+  { symbol: 'CASH', name: 'Efectivo', current: 6, optimal: 7, value: 5547, color: '#9ca3af' }
+];
+
+function renderDonut() {
+  const ctx = document.getElementById('donutChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: PORTFOLIO.map(p => p.symbol),
+      datasets: [{
+        data: PORTFOLIO.map(p => p.current),
+        backgroundColor: PORTFOLIO.map(p => p.color),
+        borderWidth: 3, borderColor: '#fff', hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '60%',
+      plugins: {
+        legend: { position: 'right', labels: { font: { size: 12 }, padding: 14 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}%  ($${PORTFOLIO[ctx.dataIndex].value.toLocaleString()})` } }
+      }
+    }
+  });
+}
+
+function renderEquity() {
+  const ctx = document.getElementById('equityChart').getContext('2d');
+  const n = 120;
+  const labels = [];
+  const port = [], bench = [];
+  let pv = 78000, bv = 78000;
+  const start = new Date('2026-01-01');
+  for (let i = 0; i < n; i++) {
+    const d = new Date(start); d.setDate(d.getDate() + i);
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
+    labels.push(d.toLocaleDateString('es', {month:'short',day:'numeric'}));
+    pv *= 1 + (Math.sin(i * 0.3) * 0.008 + 0.0015);
+    bv *= 1 + (Math.sin(i * 0.25) * 0.006 + 0.0009);
+    port.push(+pv.toFixed(2));
+    bench.push(+bv.toFixed(2));
+  }
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'InvestAI Portfolio', data: port, borderColor: '#1F3864', borderWidth: 2.5, fill: true, backgroundColor: 'rgba(31,56,100,0.08)', tension: 0.4, pointRadius: 0 },
+        { label: 'S&P 500', data: bench, borderColor: '#C5961A', borderWidth: 1.5, fill: false, borderDash: [6, 3], tension: 0.4, pointRadius: 0 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top', labels: { font: { size: 12 } } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K', font: { size: 11 } }, grid: { color: '#f5f5f5' } }
+      }
+    }
+  });
+}
+
+function renderRebalance() {
+  const tbody = document.getElementById('reb-tbody');
+  const totalValue = PORTFOLIO.reduce((s, p) => s + p.value, 0);
+  tbody.innerHTML = PORTFOLIO.map(p => {
+    const dev = p.current - p.optimal;
+    const devAbs = Math.abs(dev);
+    const adjustUSD = Math.round((dev / 100) * totalValue);
+    const action = dev > 2 ? 'SELL' : dev < -2 ? 'BUY' : 'HOLD';
+    const barColor = dev > 0 ? '#dc2626' : '#16a34a';
+    return `
+      <tr>
+        <td><strong class="reb-symbol">${p.symbol}</strong><div style="font-size:10px;color:#888">${p.name}</div></td>
+        <td><strong>${p.current}%</strong></td>
+        <td>${p.optimal}%</td>
+        <td>
+          <div style="font-size:12px;font-weight:700;color:${barColor};margin-bottom:3px">${dev > 0 ? '+' : ''}${dev}%</div>
+          <div class="deviation-bar-wrap"><div class="deviation-bar" style="width:${Math.min(devAbs*10,100)}%;background:${barColor}"></div></div>
+        </td>
+        <td><span class="action-tag action-${action}">${action}</span></td>
+        <td style="font-weight:700;color:${adjustUSD > 0 ? '#dc2626' : adjustUSD < 0 ? '#16a34a' : '#888'}">${adjustUSD >= 0 ? '-' : '+'}$${Math.abs(adjustUSD).toLocaleString()}</td>
+      </tr>`;
+  }).join('');
+}
+
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'portfolio') {
+    setTimeout(() => { renderDonut(); renderEquity(); renderRebalance(); }, 50);
+  }
+}
+</script>
+</body>
+</html>
