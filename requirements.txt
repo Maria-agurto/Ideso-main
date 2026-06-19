@@ -2,3 +2,5 @@ fastapi
 uvicorn
 yfinance
 pydantic
+pandas
+requests
