@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API de Simulaciones MLOps - Netlify Docs</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f7f7f7; margin: 0; padding: 20px; color: #333; }
+        .header { background-color: #1b1b1b; color: white; padding: 20px; border-radius: 4px; margin-bottom: 20px; }
+        .endpoint { background-color: white; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px; padding: 15px; }
+        .get { border-left: 5px solid #61affe; }
+        .badge { background-color: #61affe; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold; }
+        .path { font-family: monospace; font-size: 1.1em; margin-left: 10px; }
+        button { background-color: #49cc90; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .response { background-color: #292a2d; color: #ff6b6b; padding: 15px; border-radius: 4px; font-family: monospace; margin-top: 10px; display: none; }
+        .json-success { color: #a6e22e; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>API de Simulaciones MLOps - Netlify</h1>
+        <p>Documentación interactiva de contingencia para la validación de endpoints.</p>
+    </div>
+
+    <div class="endpoint get">
+        <span class="badge">GET</span><span class="path">/api/svc/FSM</span>
+        <p><strong>Simulación 2:</strong> Inferencia del modelo predictivo SVC.</p>
+        <button onclick="ejecutarSvc()">Try it out / Execute</button>
+        <div id="res-svc" class="response">
+            HTTP/1.1 503 Service Unavailable<br><br>
+            {<br>
+            &nbsp;&nbsp;"detail": "Modelo predictivo SVC no disponible en el almacenamiento estructural de Netlify."<br>
+            }
+        </div>
+    </div>
+
+    <div class="endpoint get">
+        <span class="badge">GET</span><span class="path">/api/db-status</span>
+        <p><strong>Simulación 3:</strong> Conectividad del motor relacional PostgreSQL.</p>
+        <button onclick="ejecutarDb()">Try it out / Execute</button>
+        <div id="res-db" class="response json-success">
+            HTTP/1.1 200 OK<br><br>
+            {<br>
+            &nbsp;&nbsp;"status": "contingency_mode",<br>
+            &nbsp;&nbsp;"detail": "El motor relacional externo no se encuentra accesible de forma directa en Netlify. Simulación completada."<br>
+            }
+        </div>
+    </div>
+
+    <script>
+        function ejecutarSvc() { document.getElementById('res-svc').style.display = 'block'; }
+        function ejecutarDb() { document.getElementById('res-db').style.display = 'block'; }
+    </script>
+</body>
+</html>
