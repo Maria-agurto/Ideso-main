@@ -4,3 +4,7 @@ yfinance
 pydantic
 pandas
 requests
+joblib
+numpy
+pytest
+httpx
