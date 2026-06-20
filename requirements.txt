@@ -1,10 +1,8 @@
 fastapi
 uvicorn
-yfinance
-pydantic
-pandas
-requests
 joblib
 numpy
+pandas
+yfinance
 pytest
 httpx
